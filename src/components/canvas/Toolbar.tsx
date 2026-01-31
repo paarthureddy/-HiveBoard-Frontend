@@ -1,10 +1,10 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { 
-  Pencil, 
-  Eraser, 
-  MousePointer2, 
-  Undo2, 
+import {
+  Pencil,
+  Eraser,
+  MousePointer2,
+  Undo2,
   Trash2,
   Minus,
   Plus
@@ -48,10 +48,10 @@ const Toolbar = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: 0.2 }}
-      className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-3 bg-card border border-border rounded-2xl shadow-elevated"
+      className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-wrap items-center justify-center gap-2 px-4 py-3 bg-card border border-border rounded-2xl shadow-elevated max-w-[calc(100vw-200px)] w-max"
     >
       {/* Drawing Tools */}
-      <div className="flex items-center gap-1 pr-3 border-r border-border">
+      <div className="flex items-center gap-1">
         <Button
           variant="canvas"
           size="icon-sm"
@@ -88,7 +88,7 @@ const Toolbar = ({
       </div>
 
       {/* Color Picker */}
-      <div className="flex items-center gap-1.5 px-2">
+      <div className="flex flex-wrap items-center justify-center gap-1.5 px-2 max-w-[200px] sm:max-w-none">
         {COLORS.map(color => (
           <button
             key={color}
@@ -103,7 +103,7 @@ const Toolbar = ({
       </div>
 
       {/* Brush Size */}
-      <div className="flex items-center gap-1 px-2 border-l border-border">
+      <div className="flex items-center gap-1 px-2">
         <Button
           variant="ghost"
           size="icon-sm"
@@ -122,7 +122,7 @@ const Toolbar = ({
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-1 pl-2 border-l border-border">
+      <div className="flex items-center gap-1 pl-2">
         <Button
           variant="ghost"
           size="icon-sm"
