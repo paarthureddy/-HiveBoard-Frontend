@@ -44,7 +44,8 @@ const MOCK_MESSAGES: ChatMessage[] = [
 const Canvas = () => {
   const location = useLocation();
   const { user, isAuthenticated } = useAuth();
-  const { guestUser, isGuest, isReadOnly } = useGuest();
+  const { guestUser, isGuest } = useGuest();
+  const isReadOnly = !isAuthenticated;
 
   const {
     canvasRef,
