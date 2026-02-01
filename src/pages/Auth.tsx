@@ -5,9 +5,10 @@ import { GoogleLogin } from "@react-oauth/google";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Palette, ArrowLeft, Mail, Lock, User, Loader2 } from "lucide-react";
+import { ArrowLeft, Mail, Lock, User, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import connectLogo from '@/assets/connect.jpg';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -113,8 +114,8 @@ const Auth = () => {
         <div className="bg-card border border-border rounded-2xl shadow-elevated p-8">
           {/* Logo */}
           <div className="flex items-center justify-center gap-2 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-gradient-rose flex items-center justify-center">
-              <Palette className="w-5 h-5 text-primary-foreground" />
+            <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center">
+              <img src={connectLogo} alt="Connect Logo" className="w-full h-full object-cover" />
             </div>
             <span className="font-display text-2xl font-semibold">Atelier</span>
           </div>

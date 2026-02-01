@@ -1,9 +1,10 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Users, Sparkles, Palette, Share2 } from "lucide-react";
+import { ArrowRight, Users, Sparkles, Share2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import heroBackground from "@/assets/hero-background.jpg";
+import logo from "@/assets/hive-logo.jpg";
 
 const Landing = () => {
   const { isAuthenticated } = useAuth();
@@ -18,8 +19,8 @@ const Landing = () => {
             animate={{ opacity: 1, x: 0 }}
             className="flex items-center gap-2"
           >
-            <div className="w-8 h-8 rounded-lg bg-gradient-rose flex items-center justify-center">
-              <Palette className="w-4 h-4 text-primary-foreground" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden">
+              <img src={logo} alt="HiveBoard Logo" className="w-full h-full object-cover" />
             </div>
             <span className="font-display text-xl font-semibold">HiveBoard</span>
           </motion.div>
@@ -240,8 +241,8 @@ const Landing = () => {
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-rose flex items-center justify-center">
-                <Palette className="w-4 h-4 text-primary-foreground" />
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+                <img src={logo} alt="HiveBoard Logo" className="w-full h-full object-cover" />
               </div>
               <span className="font-display text-lg font-semibold">HiveBoard</span>
             </div>

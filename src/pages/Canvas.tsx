@@ -16,8 +16,8 @@ import ShareModal from "@/components/ShareModal";
 import LoginPromptModal from "@/components/LoginPromptModal";
 import { User, ChatMessage, PRESENCE_COLORS } from "@/types/canvas";
 import type { Participant } from "@/types/room";
+import logo from "@/assets/hive-logo.jpg";
 import {
-  Palette,
   Share2,
   Download,
   MoreHorizontal,
@@ -287,8 +287,8 @@ const Canvas = () => {
         {/* Left side */}
         <div className="flex items-center gap-4">
           <Link to={isAuthenticated ? "/home" : "/"} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <div className="w-8 h-8 rounded-lg bg-gradient-rose flex items-center justify-center">
-              <Palette className="w-4 h-4 text-primary-foreground" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden">
+              <img src={logo} alt="HiveBoard Logo" className="w-full h-full object-cover" />
             </div>
           </Link>
 
