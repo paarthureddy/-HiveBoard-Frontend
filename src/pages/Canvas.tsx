@@ -10,6 +10,7 @@ import { joinRoom, leaveRoom, sendStroke, sendPoint, sendClearCanvas, sendUndo, 
 import { meetingsAPI } from "@/lib/api";
 import Toolbar from "@/components/canvas/Toolbar";
 import ChatPanel from "@/components/canvas/ChatPanel";
+import AiChatPanel from "@/components/canvas/AiChatPanel";
 import UserPresence from "@/components/canvas/UserPresence";
 import ParticipantsList from "@/components/ParticipantsList";
 import ShareModal from "@/components/ShareModal";
@@ -82,6 +83,7 @@ const Canvas = () => {
   });
 
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isAiChatOpen, setIsAiChatOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>(MOCK_MESSAGES);
   const [sessionName, setSessionName] = useState("Loading...");
   const [isLocked] = useState(false);
@@ -141,7 +143,13 @@ const Canvas = () => {
       }
 
       try {
-        const meeting = await meetingsAPI.getById(meetingId);
+        let meeting;
+        if (isAuthenticated) {
+          meeting = await meetingsAPI.getById(meetingId);
+        } else {
+          // Guests fetch from public endpoint
+          meeting = await meetingsAPI.getPublicById(meetingId);
+        }
         setSessionName(meeting.title);
       } catch (error) {
         console.error('Error fetching meeting:', error);
@@ -391,14 +399,25 @@ const Canvas = () => {
           />
         )}
 
-        {/* Chat Panel */}
         <ChatPanel
           messages={messages}
           users={MOCK_USERS}
           currentUserId="1"
           onSendMessage={handleSendMessage}
           isOpen={isChatOpen}
-          onToggle={() => setIsChatOpen(!isChatOpen)}
+          onToggle={() => {
+            setIsChatOpen(!isChatOpen);
+            if (!isChatOpen) setIsAiChatOpen(false);
+          }}
+        />
+
+        {/* AI Chat Panel */}
+        <AiChatPanel
+          isOpen={isAiChatOpen}
+          onToggle={() => {
+            setIsAiChatOpen(!isAiChatOpen);
+            if (!isAiChatOpen) setIsChatOpen(false);
+          }}
         />
       </div>
 
