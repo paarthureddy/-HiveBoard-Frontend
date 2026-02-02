@@ -19,6 +19,37 @@ export interface ChatMessage {
   timestamp: Date;
 }
 
+export interface StickyNote {
+  id: string;
+  x: number;
+  y: number;
+  text: string;
+  color: string;
+  width?: number;
+  height?: number;
+}
+
+export interface TextItem {
+  id: string;
+  x: number;
+  y: number;
+  text: string;
+  color: string;
+  fontSize: number;
+}
+
+export interface CroquisItem {
+  id: string;
+  src: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  opacity: number;
+  isLocked: boolean;
+  isFlipped: boolean;
+}
+
 export interface CanvasElement {
   id: string;
   type: 'path' | 'shape' | 'text' | 'image';
