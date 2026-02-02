@@ -29,6 +29,13 @@ export const setupSocketHandlers = (io) => {
                 }
 
                 if (room) {
+                    // Clean up stale connections (zombies from server restarts)
+                    if (io.sockets && io.sockets.sockets) {
+                        const connectedSocketIds = io.sockets.sockets; // Map of socketId -> Socket
+                        room.activeConnections = room.activeConnections.filter(conn =>
+                            connectedSocketIds.has(conn.socketId)
+                        );
+                    }
                     // Add connection to active connections
                     room.addConnection({
                         socketId: socket.id,
@@ -127,6 +134,19 @@ export const setupSocketHandlers = (io) => {
                     const room = await Room.findOne({ roomId: socket.roomId });
 
                     if (room) {
+                        // Clean up stale connections here too
+                        if (io.sockets && io.sockets.sockets) {
+                            const connectedSocketIds = io.sockets.sockets;
+                            let changed = false;
+                            const initialLen = room.activeConnections.length;
+                            room.activeConnections = room.activeConnections.filter(conn =>
+                                connectedSocketIds.has(conn.socketId)
+                            );
+                            if (room.activeConnections.length !== initialLen) {
+                                await room.save();
+                            }
+                        }
+
                         const participants = room.activeConnections.map(conn => ({
                             socketId: conn.socketId,
                             userId: conn.userId,
