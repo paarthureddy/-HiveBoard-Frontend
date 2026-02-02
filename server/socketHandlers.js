@@ -336,11 +336,145 @@ export const setupSocketHandlers = (io) => {
                         socket.emit('canvas-state', {
                             strokes: meeting.canvasData.strokes || [],
                             croquis: meeting.canvasData.croquis || [],
+                            stickyNotes: meeting.canvasData.stickyNotes || [],
+                            textItems: meeting.canvasData.textItems || [],
                         });
                     }
                 }
             } catch (error) {
                 console.error('Error fetching canvas state:', error);
+            }
+        });
+
+        // --- Sticky Notes ---
+
+        socket.on('add-sticky', async (data) => {
+            try {
+                if (socket.roomId) {
+                    socket.to(socket.roomId).emit('sticky-added', {
+                        ...data,
+                        timestamp: Date.now(),
+                    });
+
+                    if (data.meetingId) {
+                        await Meeting.updateOne(
+                            { _id: data.meetingId },
+                            { $push: { 'canvasData.stickyNotes': data.note } }
+                        );
+                    }
+                }
+            } catch (error) {
+                console.error('Error adding sticky:', error);
+            }
+        });
+
+        socket.on('update-sticky', async (data) => {
+            try {
+                if (socket.roomId) {
+                    socket.to(socket.roomId).emit('sticky-updated', {
+                        ...data,
+                        timestamp: Date.now(),
+                    });
+
+                    if (data.meetingId) {
+                        const updateFields = {};
+                        for (const [key, value] of Object.entries(data.updates)) {
+                            updateFields[`canvasData.stickyNotes.$.${key}`] = value;
+                        }
+                        await Meeting.updateOne(
+                            { _id: data.meetingId, 'canvasData.stickyNotes.id': data.id },
+                            { $set: updateFields }
+                        );
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating sticky:', error);
+            }
+        });
+
+        socket.on('delete-sticky', async (data) => {
+            try {
+                if (socket.roomId) {
+                    socket.to(socket.roomId).emit('sticky-deleted', {
+                        id: data.id,
+                        timestamp: Date.now(),
+                    });
+
+                    if (data.meetingId) {
+                        await Meeting.updateOne(
+                            { _id: data.meetingId },
+                            { $pull: { 'canvasData.stickyNotes': { id: data.id } } }
+                        );
+                    }
+                }
+            } catch (error) {
+                console.error('Error deleting sticky:', error);
+            }
+        });
+
+        // --- Text Items ---
+
+        socket.on('add-text', async (data) => {
+            try {
+                if (socket.roomId) {
+                    socket.to(socket.roomId).emit('text-added', {
+                        ...data,
+                        timestamp: Date.now(),
+                    });
+
+                    if (data.meetingId) {
+                        await Meeting.updateOne(
+                            { _id: data.meetingId },
+                            { $push: { 'canvasData.textItems': data.item } }
+                        );
+                    }
+                }
+            } catch (error) {
+                console.error('Error adding text:', error);
+            }
+        });
+
+        socket.on('update-text', async (data) => {
+            try {
+                if (socket.roomId) {
+                    socket.to(socket.roomId).emit('text-updated', {
+                        ...data,
+                        timestamp: Date.now(),
+                    });
+
+                    if (data.meetingId) {
+                        const updateFields = {};
+                        for (const [key, value] of Object.entries(data.updates)) {
+                            updateFields[`canvasData.textItems.$.${key}`] = value;
+                        }
+                        await Meeting.updateOne(
+                            { _id: data.meetingId, 'canvasData.textItems.id': data.id },
+                            { $set: updateFields }
+                        );
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating text:', error);
+            }
+        });
+
+        socket.on('delete-text', async (data) => {
+            try {
+                if (socket.roomId) {
+                    socket.to(socket.roomId).emit('text-deleted', {
+                        id: data.id,
+                        timestamp: Date.now(),
+                    });
+
+                    if (data.meetingId) {
+                        await Meeting.updateOne(
+                            { _id: data.meetingId },
+                            { $pull: { 'canvasData.textItems': { id: data.id } } }
+                        );
+                    }
+                }
+            } catch (error) {
+                console.error('Error deleting text:', error);
             }
         });
 

@@ -141,6 +141,37 @@ export const sendMessage = (data: {
     socket.emit('send-message', data);
 };
 
+
+export const sendAddSticky = (data: { meetingId?: string; note: any; }): void => {
+    const socket = getSocket();
+    socket.emit('add-sticky', data);
+};
+
+export const sendUpdateSticky = (data: { meetingId?: string; id: string; updates: any; }): void => {
+    const socket = getSocket();
+    socket.emit('update-sticky', data);
+};
+
+export const sendDeleteSticky = (data: { meetingId?: string; id: string; }): void => {
+    const socket = getSocket();
+    socket.emit('delete-sticky', data);
+};
+
+export const sendAddText = (data: { meetingId?: string; item: any; }): void => {
+    const socket = getSocket();
+    socket.emit('add-text', data);
+};
+
+export const sendUpdateText = (data: { meetingId?: string; id: string; updates: any; }): void => {
+    const socket = getSocket();
+    socket.emit('update-text', data);
+};
+
+export const sendDeleteText = (data: { meetingId?: string; id: string; }): void => {
+    const socket = getSocket();
+    socket.emit('delete-text', data);
+};
+
 export const requestCanvasState = (data: { meetingId: string }): void => {
     const socket = getSocket();
     socket.emit('request-canvas-state', data);
@@ -159,5 +190,15 @@ export default {
     sendPoint,
     sendClearCanvas,
     sendUndo,
+    sendAddCroquis,
+    sendUpdateCroquis,
+    sendMessage,
     requestCanvasState,
+    sendAddSticky,
+    sendUpdateSticky,
+    sendDeleteSticky,
+    sendAddText,
+    sendUpdateText,
+    sendDeleteText,
 };
+

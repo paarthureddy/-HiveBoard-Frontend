@@ -7,7 +7,7 @@ import { useCanvas } from "@/hooks/useCanvas";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGuest } from "@/contexts/GuestContext";
 import { useSocket } from "@/hooks/useSocket";
-import { joinRoom, leaveRoom, sendStroke, sendPoint, sendClearCanvas, sendUndo, requestCanvasState, sendMessage, sendAddCroquis, sendUpdateCroquis } from "@/lib/socket";
+import { joinRoom, leaveRoom, sendStroke, sendPoint, sendClearCanvas, sendUndo, requestCanvasState, sendMessage, sendAddCroquis, sendUpdateCroquis, sendAddSticky, sendUpdateSticky, sendDeleteSticky, sendAddText, sendUpdateText, sendDeleteText } from "@/lib/socket";
 import { meetingsAPI } from "@/lib/api";
 import Toolbar from "@/components/canvas/Toolbar";
 import ChatPanel from "@/components/canvas/ChatPanel";
@@ -196,6 +196,10 @@ const Canvas = () => {
           height: 200
         };
         setStickyNotes(prev => [...prev, newNote]);
+        sendAddSticky({
+          meetingId: meetingId || undefined,
+          note: newNote
+        });
       }
       return;
     }
@@ -213,6 +217,10 @@ const Canvas = () => {
           fontSize: 24
         };
         setTextItems(prev => [...prev, newText]);
+        sendAddText({
+          meetingId: meetingId || undefined,
+          item: newText
+        });
         setTool('select');
       }
       return;
@@ -251,19 +259,37 @@ const Canvas = () => {
   // Sticky Note Actions
   const handleNoteChange = (id: string, text: string) => {
     setStickyNotes(prev => prev.map(n => n.id === id ? { ...n, text } : n));
+    sendUpdateSticky({
+      meetingId: meetingId || undefined,
+      id,
+      updates: { text }
+    });
   };
 
   const handleNoteDelete = (id: string) => {
     setStickyNotes(prev => prev.filter(n => n.id !== id));
+    sendDeleteSticky({
+      meetingId: meetingId || undefined,
+      id
+    });
   };
 
   // Text Actions
   const handleTextChange = (id: string, text: string) => {
     setTextItems(prev => prev.map(t => t.id === id ? { ...t, text } : t));
+    sendUpdateText({
+      meetingId: meetingId || undefined,
+      id,
+      updates: { text }
+    });
   };
 
   const handleTextDelete = (id: string) => {
     setTextItems(prev => prev.filter(t => t.id !== id));
+    sendDeleteText({
+      meetingId: meetingId || undefined,
+      id
+    });
   };
 
   // Croquis Actions
@@ -428,11 +454,35 @@ const Canvas = () => {
     onCroquisUpdated: (data) => {
       setCroquisItems(prev => prev.map(c => c.id === data.id ? { ...c, ...data.updates } : c));
     },
+    onStickyAdded: (data) => {
+      setStickyNotes(prev => {
+        if (prev.some(n => n.id === data.note.id)) return prev;
+        return [...prev, data.note];
+      });
+    },
+    onStickyUpdated: (data) => {
+      setStickyNotes(prev => prev.map(n => n.id === data.id ? { ...n, ...data.updates } : n));
+    },
+    onStickyDeleted: (data) => {
+      setStickyNotes(prev => prev.filter(n => n.id !== data.id));
+    },
+    onTextAdded: (data) => {
+      setTextItems(prev => {
+        if (prev.some(t => t.id === data.item.id)) return prev;
+        return [...prev, data.item];
+      });
+    },
+    onTextUpdated: (data) => {
+      setTextItems(prev => prev.map(t => t.id === data.id ? { ...t, ...data.updates } : t));
+    },
+    onTextDeleted: (data) => {
+      setTextItems(prev => prev.filter(t => t.id !== data.id));
+    },
     onCanvasState: (data) => {
       setInitialStrokes(data.strokes);
-      if (data.croquis) {
-        setCroquisItems(data.croquis);
-      }
+      if (data.croquis) setCroquisItems(data.croquis);
+      if (data.stickyNotes) setStickyNotes(data.stickyNotes);
+      if (data.textItems) setTextItems(data.textItems);
     },
   });
 

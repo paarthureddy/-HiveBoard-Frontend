@@ -20,6 +20,12 @@ interface UseSocketOptions {
     onReceiveMessage?: (message: any) => void;
     onCroquisAdded?: (data: { item: any }) => void;
     onCroquisUpdated?: (data: { id: string; updates: any }) => void;
+    onStickyAdded?: (data: { note: any }) => void;
+    onStickyUpdated?: (data: { id: string; updates: any }) => void;
+    onStickyDeleted?: (data: { id: string }) => void;
+    onTextAdded?: (data: { item: any }) => void;
+    onTextUpdated?: (data: { id: string; updates: any }) => void;
+    onTextDeleted?: (data: { id: string }) => void;
 }
 
 export const useSocket = (options: UseSocketOptions = {}) => {
@@ -56,6 +62,12 @@ export const useSocket = (options: UseSocketOptions = {}) => {
         const handleReceiveMessage = (data: any) => optionsRef.current.onReceiveMessage?.(data);
         const handleCroquisAdded = (data: any) => optionsRef.current.onCroquisAdded?.(data);
         const handleCroquisUpdated = (data: any) => optionsRef.current.onCroquisUpdated?.(data);
+        const handleStickyAdded = (data: any) => optionsRef.current.onStickyAdded?.(data);
+        const handleStickyUpdated = (data: any) => optionsRef.current.onStickyUpdated?.(data);
+        const handleStickyDeleted = (data: any) => optionsRef.current.onStickyDeleted?.(data);
+        const handleTextAdded = (data: any) => optionsRef.current.onTextAdded?.(data);
+        const handleTextUpdated = (data: any) => optionsRef.current.onTextUpdated?.(data);
+        const handleTextDeleted = (data: any) => optionsRef.current.onTextDeleted?.(data);
 
         // Set up event listeners
         socket.on('room-joined', handleRoomJoined);
@@ -73,6 +85,12 @@ export const useSocket = (options: UseSocketOptions = {}) => {
         socket.on('receive-message', handleReceiveMessage);
         socket.on('croquis-added', handleCroquisAdded);
         socket.on('croquis-updated', handleCroquisUpdated);
+        socket.on('sticky-added', handleStickyAdded);
+        socket.on('sticky-updated', handleStickyUpdated);
+        socket.on('sticky-deleted', handleStickyDeleted);
+        socket.on('text-added', handleTextAdded);
+        socket.on('text-updated', handleTextUpdated);
+        socket.on('text-deleted', handleTextDeleted);
         socket.on('error', handleError);
 
         // Cleanup on unmount
@@ -93,6 +111,12 @@ export const useSocket = (options: UseSocketOptions = {}) => {
             socket.off('receive-message', handleReceiveMessage);
             socket.off('croquis-added', handleCroquisAdded);
             socket.off('croquis-updated', handleCroquisUpdated);
+            socket.off('sticky-added', handleStickyAdded);
+            socket.off('sticky-updated', handleStickyUpdated);
+            socket.off('sticky-deleted', handleStickyDeleted);
+            socket.off('text-added', handleTextAdded);
+            socket.off('text-updated', handleTextUpdated);
+            socket.off('text-deleted', handleTextDeleted);
 
             disconnectSocket();
         };
