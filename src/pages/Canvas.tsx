@@ -37,11 +37,7 @@ import {
 } from "lucide-react";
 
 
-const MOCK_MESSAGES: ChatMessage[] = [
-  { id: '1', userId: '2', userName: 'Emma Chen', content: 'Love the new silhouette direction! 🎨', timestamp: new Date(Date.now() - 300000) },
-  { id: '2', userId: '1', userName: 'You', content: 'Thanks! Working on the sleeve details now.', timestamp: new Date(Date.now() - 240000) },
-  { id: '3', userId: '3', userName: 'Lucas M.', content: 'The fabric drape looks perfect', timestamp: new Date(Date.now() - 60000) },
-];
+const MOCK_MESSAGES: ChatMessage[] = [];
 
 const Canvas = () => {
   const location = useLocation();
