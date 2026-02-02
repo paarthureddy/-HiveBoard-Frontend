@@ -14,10 +14,12 @@ interface UseSocketOptions {
     onPointDrawn?: (data: { userId?: string; guestId?: string; point: { x: number; y: number }; strokeId: string; color: string; width: number }) => void;
     onCanvasCleared?: (data: { userId?: string; guestId?: string }) => void;
     onStrokeUndone?: (data: { userId?: string; guestId?: string }) => void;
-    onCanvasState?: (data: { strokes: any[] }) => void;
+    onCanvasState?: (data: { strokes: any[]; croquis: any[]; }) => void;
     onError?: (data: { message: string }) => void;
     onChatHistory?: (messages: any[]) => void;
     onReceiveMessage?: (message: any) => void;
+    onCroquisAdded?: (data: { item: any }) => void;
+    onCroquisUpdated?: (data: { id: string; updates: any }) => void;
 }
 
 export const useSocket = (options: UseSocketOptions = {}) => {
@@ -52,6 +54,8 @@ export const useSocket = (options: UseSocketOptions = {}) => {
         const handleError = (data: any) => optionsRef.current.onError?.(data);
         const handleChatHistory = (data: any) => optionsRef.current.onChatHistory?.(data);
         const handleReceiveMessage = (data: any) => optionsRef.current.onReceiveMessage?.(data);
+        const handleCroquisAdded = (data: any) => optionsRef.current.onCroquisAdded?.(data);
+        const handleCroquisUpdated = (data: any) => optionsRef.current.onCroquisUpdated?.(data);
 
         // Set up event listeners
         socket.on('room-joined', handleRoomJoined);
@@ -67,6 +71,8 @@ export const useSocket = (options: UseSocketOptions = {}) => {
         socket.on('canvas-state', handleCanvasState);
         socket.on('chat-history', handleChatHistory);
         socket.on('receive-message', handleReceiveMessage);
+        socket.on('croquis-added', handleCroquisAdded);
+        socket.on('croquis-updated', handleCroquisUpdated);
         socket.on('error', handleError);
 
         // Cleanup on unmount
@@ -85,6 +91,8 @@ export const useSocket = (options: UseSocketOptions = {}) => {
             socket.off('canvas-state', handleCanvasState);
             socket.off('chat-history', handleChatHistory);
             socket.off('receive-message', handleReceiveMessage);
+            socket.off('croquis-added', handleCroquisAdded);
+            socket.off('croquis-updated', handleCroquisUpdated);
 
             disconnectSocket();
         };

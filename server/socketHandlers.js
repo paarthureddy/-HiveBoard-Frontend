@@ -268,6 +268,65 @@ export const setupSocketHandlers = (io) => {
             }
         });
 
+        // Add croquis
+        socket.on('add-croquis', async (data) => {
+            try {
+                if (socket.roomId) {
+                    socket.to(socket.roomId).emit('croquis-added', {
+                        ...data,
+                        timestamp: Date.now(),
+                    });
+
+                    if (data.meetingId) {
+                        await Meeting.updateOne(
+                            { _id: data.meetingId },
+                            { $push: { 'canvasData.croquis': data.item } }
+                        );
+                    }
+                }
+            } catch (error) {
+                console.error('Error adding croquis:', error);
+            }
+        });
+
+        // Update croquis
+        socket.on('update-croquis', async (data) => {
+            try {
+                if (socket.roomId) {
+                    socket.to(socket.roomId).emit('croquis-updated', {
+                        ...data,
+                        timestamp: Date.now(),
+                    });
+
+                    if (data.meetingId) {
+                        // We construct a dynamic update object to only update changed fields
+                        // But since it's an array of objects, we need to match by ID
+                        // Mongoose Mixed type might be tricky with positional operator if not defined in schema
+                        // But let's try standard Mongo syntax.
+                        // Actually, replacing the whole object or using broad set might be safer for Mixed.
+                        // Let's try to update specific fields using arrayFilters or just pull/push if simple.
+                        // Better: Read, update, save? No, race conditions.
+                        // Let's assume standard positional operator works for Mixed arrays in Mongo.
+                        // However, to be safe with Mixed, let's just use $set with a loop or simplistic approach.
+                        // Actually, `activeConnections` is defined. `canvasData` is Mixed.
+                        // Mongo driver supports 'canvasData.croquis.$.x' if we match 'canvasData.croquis.id'.
+
+                        const updateFields = {};
+                        for (const [key, value] of Object.entries(data.updates)) {
+                            updateFields[`canvasData.croquis.$.${key}`] = value;
+                        }
+
+                        await Meeting.updateOne(
+                            { _id: data.meetingId, 'canvasData.croquis.id': data.id },
+                            { $set: updateFields }
+                        );
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating croquis:', error);
+            }
+        });
+
         // Request canvas state (for late joiners)
         socket.on('request-canvas-state', async (data) => {
             try {
@@ -276,6 +335,7 @@ export const setupSocketHandlers = (io) => {
                     if (meeting && meeting.canvasData) {
                         socket.emit('canvas-state', {
                             strokes: meeting.canvasData.strokes || [],
+                            croquis: meeting.canvasData.croquis || [],
                         });
                     }
                 }

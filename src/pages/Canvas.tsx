@@ -6,7 +6,7 @@ import { useCanvas } from "@/hooks/useCanvas";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGuest } from "@/contexts/GuestContext";
 import { useSocket } from "@/hooks/useSocket";
-import { joinRoom, leaveRoom, sendStroke, sendPoint, sendClearCanvas, sendUndo, requestCanvasState, sendMessage } from "@/lib/socket";
+import { joinRoom, leaveRoom, sendStroke, sendPoint, sendClearCanvas, sendUndo, requestCanvasState, sendMessage, sendAddCroquis, sendUpdateCroquis } from "@/lib/socket";
 import { meetingsAPI } from "@/lib/api";
 import Toolbar from "@/components/canvas/Toolbar";
 import ChatPanel from "@/components/canvas/ChatPanel";
@@ -291,10 +291,23 @@ const Canvas = () => {
     setCroquisItems(prev => [...prev, newItem]);
     setSelectedCroquisId(newItem.id);
     setTool('select');
+
+    // Broadcast
+    sendAddCroquis({
+      meetingId: meetingId || undefined,
+      item: newItem
+    });
   };
 
   const updateCroquis = (id: string, updates: Partial<CroquisItem>) => {
     setCroquisItems(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+
+    // Broadcast
+    sendUpdateCroquis({
+      meetingId: meetingId || undefined,
+      id,
+      updates
+    });
   };
 
   // Native Event Listeners for Non-Passive behavior
@@ -382,7 +395,6 @@ const Canvas = () => {
     onPointDrawn: (data) => drawRemotePoint(data.point, data.strokeId, data.color, data.width),
     onCanvasCleared: () => clearCanvasRemote(),
     onStrokeUndone: () => undoRemote(),
-    onCanvasState: (data) => setInitialStrokes(data.strokes),
     onChatHistory: (history) => {
       setMessages(history.map((msg: any) => ({
         id: msg._id,
@@ -404,6 +416,21 @@ const Canvas = () => {
           timestamp: new Date(msg.timestamp)
         }];
       });
+    },
+    onCroquisAdded: (data) => {
+      setCroquisItems(prev => {
+        if (prev.some(item => item.id === data.item.id)) return prev;
+        return [...prev, data.item];
+      });
+    },
+    onCroquisUpdated: (data) => {
+      setCroquisItems(prev => prev.map(c => c.id === data.id ? { ...c, ...data.updates } : c));
+    },
+    onCanvasState: (data) => {
+      setInitialStrokes(data.strokes);
+      if (data.croquis) {
+        setCroquisItems(data.croquis);
+      }
     },
   });
 

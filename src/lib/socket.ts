@@ -120,6 +120,16 @@ export const sendUndo = (data: { meetingId?: string }): void => {
     socket.emit('undo-stroke', data);
 };
 
+export const sendAddCroquis = (data: { meetingId?: string; item: any; }): void => {
+    const socket = getSocket();
+    socket.emit('add-croquis', data);
+};
+
+export const sendUpdateCroquis = (data: { meetingId?: string; id: string; updates: any; }): void => {
+    const socket = getSocket();
+    socket.emit('update-croquis', data);
+};
+
 export const sendMessage = (data: {
     meetingId?: string;
     userId?: string;
