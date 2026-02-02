@@ -140,6 +140,7 @@ const Canvas = () => {
   const [roomId, setRoomId] = useState<string>('');
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [isParticipantsListOpen, setIsParticipantsListOpen] = useState(false);
 
   // Pan/Zoom State
   const [isPanning, setIsPanning] = useState(false);
@@ -533,7 +534,7 @@ const Canvas = () => {
             )}
           </div>
         </div>
-        <UserPresence users={participants.map((p, i) => ({ id: p.userId || p.guestId || p.socketId, name: p.name, role: p.isOwner ? 'owner' : (p.userId ? 'editor' : 'viewer'), color: PRESENCE_COLORS[i % PRESENCE_COLORS.length], isOnline: true }))} currentUserId={user?._id || guestUser?.guestId || ''} />
+        <UserPresence users={participants.map((p, i) => ({ id: p.userId || p.guestId || p.socketId, name: p.name, role: p.isOwner ? 'owner' : (p.userId ? 'editor' : 'viewer'), color: PRESENCE_COLORS[i % PRESENCE_COLORS.length], isOnline: true }))} currentUserId={user?._id || guestUser?.guestId || ''} onClick={() => setIsParticipantsListOpen(!isParticipantsListOpen)} />
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" className="gap-2" onClick={handleShare}><Share2 className="w-4 h-4" /> Share</Button>
           <Button variant="ghost" size="icon-sm" onClick={handleExport}><Download className="w-4 h-4" /></Button>
@@ -626,7 +627,7 @@ const Canvas = () => {
         <div className="absolute top-4 right-4 bg-card/80 backdrop-blur-sm border border-border rounded-full px-3 py-1.5 text-xs font-mono text-muted-foreground select-none pointer-events-none z-30">{(scale * 100).toFixed(0)}%</div>
 
         <Toolbar tool={tool} setTool={(newTool) => { if (!handleEditAttempt()) return; setTool(newTool); }} brushColor={brushColor} setBrushColor={(color) => { if (!handleEditAttempt()) return; setBrushColor(color); }} brushWidth={brushWidth} setBrushWidth={(width) => { if (!handleEditAttempt()) return; setBrushWidth(width); }} stickyColor={stickyColor} setStickyColor={setStickyColor} onUndo={handleUndo} onClear={handleClearCanvas} onAddCroquis={handleAddCroquis} />
-        {participants.length > 0 && <ParticipantsList participants={participants} currentUserId={user?._id} currentGuestId={guestUser?.guestId} />}
+        <ParticipantsList participants={participants} currentUserId={user?._id} currentGuestId={guestUser?.guestId} isOpen={isParticipantsListOpen} onClose={() => setIsParticipantsListOpen(false)} />
         <ChatPanel messages={messages} users={participants.map((p, i) => ({ id: p.userId || p.guestId || p.socketId, name: p.name, role: p.isOwner ? 'owner' : (p.userId ? 'editor' : 'viewer'), color: PRESENCE_COLORS[i % PRESENCE_COLORS.length], isOnline: true }))} currentUserId={user?._id || guestUser?.guestId || ''} onSendMessage={handleSendMessage} isOpen={isChatOpen} onToggle={() => { setIsChatOpen(!isChatOpen); if (!isChatOpen) setIsAiChatOpen(false); }} />
         <AiChatPanel isOpen={isAiChatOpen} onToggle={() => { setIsAiChatOpen(!isAiChatOpen); if (!isAiChatOpen) setIsChatOpen(false); }} />
       </div>
