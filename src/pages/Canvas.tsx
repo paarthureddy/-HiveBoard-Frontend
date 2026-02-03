@@ -6,7 +6,7 @@ import { useCanvas } from "@/hooks/useCanvas";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGuest } from "@/contexts/GuestContext";
 import { useSocket } from "@/hooks/useSocket";
-import { joinRoom, leaveRoom, sendStroke, sendPoint, sendClearCanvas, sendUndo, requestCanvasState } from "@/lib/socket";
+import { joinRoom, leaveRoom, sendStroke, sendPoint, sendClearCanvas, sendUndo, requestCanvasState, sendMessage } from "@/lib/socket";
 import { meetingsAPI } from "@/lib/api";
 import Toolbar from "@/components/canvas/Toolbar";
 import ChatPanel from "@/components/canvas/ChatPanel";
@@ -37,11 +37,7 @@ import {
 } from "lucide-react";
 
 
-const MOCK_MESSAGES: ChatMessage[] = [
-  { id: '1', userId: '2', userName: 'Emma Chen', content: 'Love the new silhouette direction! 🎨', timestamp: new Date(Date.now() - 300000) },
-  { id: '2', userId: '1', userName: 'You', content: 'Thanks! Working on the sleeve details now.', timestamp: new Date(Date.now() - 240000) },
-  { id: '3', userId: '3', userName: 'Lucas M.', content: 'The fabric drape looks perfect', timestamp: new Date(Date.now() - 60000) },
-];
+const MOCK_MESSAGES: ChatMessage[] = [];
 
 const Canvas = () => {
   const location = useLocation();
@@ -371,6 +367,28 @@ const Canvas = () => {
     onCanvasCleared: () => clearCanvasRemote(),
     onStrokeUndone: () => undoRemote(),
     onCanvasState: (data) => setInitialStrokes(data.strokes),
+    onChatHistory: (history) => {
+      setMessages(history.map((msg: any) => ({
+        id: msg._id,
+        userId: msg.userId || msg.guestId,
+        userName: msg.userName,
+        content: msg.content,
+        timestamp: new Date(msg.timestamp)
+      })));
+    },
+    onReceiveMessage: (msg: any) => {
+      setMessages(prev => {
+        // Dedup based on ID if necessary, mostly unlikely with randomUUID but DB has _id
+        if (prev.some(m => m.id === msg._id)) return prev;
+        return [...prev, {
+          id: msg._id,
+          userId: msg.userId || msg.guestId,
+          userName: msg.userName,
+          content: msg.content,
+          timestamp: new Date(msg.timestamp)
+        }];
+      });
+    },
   });
 
   // Fetch meeting data
@@ -445,14 +463,13 @@ const Canvas = () => {
   };
 
   const handleSendMessage = (content: string) => {
-    const newMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      userId: '1',
-      userName: user?.name || guestUser?.guestName || 'You',
-      content,
-      timestamp: new Date(),
-    };
-    setMessages(prev => [...prev, newMessage]);
+    sendMessage({
+      meetingId: meetingId || undefined,
+      userId: user?._id,
+      guestId: guestUser?.guestId,
+      name: user?.name || guestUser?.guestName || 'Anonymous',
+      content
+    });
   };
 
   const handleExport = () => {
@@ -482,10 +499,13 @@ const Canvas = () => {
         </div>
       )}
 
-      <motion.header className={`h-14 px-4 flex items-center justify-between border-b border-border bg-card/80 backdrop-blur-sm z-20 ${isReadOnly ? 'mt-10' : ''}`}>
+      <motion.header
+        className={`h-14 px-4 flex items-center justify-between border-b border-[rgb(95,74,139)] backdrop-blur-sm z-20 ${isReadOnly ? 'mt-10' : ''}`}
+        style={{ backgroundColor: 'rgba(95, 74, 139, 0.75)' }}
+      >
         <div className="flex items-center gap-4">
           <Link to={isAuthenticated ? "/home" : "/"} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden border-2 border-black/20">
               <img src={logo} alt="HiveBoard Logo" className="w-full h-full object-cover" />
             </div>
           </Link>

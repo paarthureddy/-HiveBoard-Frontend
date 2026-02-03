@@ -53,7 +53,7 @@ const Auth = () => {
     };
 
     return (
-        <div className="min-h-screen w-full flex items-center justify-center bg-canvas-bg p-4">
+        <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ backgroundColor: 'rgb(227, 217, 240)' }}>
             <Card className="w-full max-w-[400px] shadow-xl border-2 border-primary/50">
                 <CardHeader className="text-center pb-2">
                     <CardDescription>Collaborative Whiteboard for Creatives</CardDescription>
