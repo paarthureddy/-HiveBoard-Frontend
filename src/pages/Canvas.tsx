@@ -217,11 +217,11 @@ const Canvas = () => {
           fontSize: 24
         };
         setTextItems(prev => [...prev, newText]);
+        setTool('select');
         sendAddText({
           meetingId: meetingId || undefined,
           item: newText
         });
-        setTool('select');
       }
       return;
     }
@@ -456,7 +456,7 @@ const Canvas = () => {
     },
     onStickyAdded: (data) => {
       setStickyNotes(prev => {
-        if (prev.some(n => n.id === data.note.id)) return prev;
+        if (prev.some(note => note.id === data.note.id)) return prev;
         return [...prev, data.note];
       });
     },
@@ -468,7 +468,7 @@ const Canvas = () => {
     },
     onTextAdded: (data) => {
       setTextItems(prev => {
-        if (prev.some(t => t.id === data.item.id)) return prev;
+        if (prev.some(item => item.id === data.item.id)) return prev;
         return [...prev, data.item];
       });
     },
@@ -480,9 +480,15 @@ const Canvas = () => {
     },
     onCanvasState: (data) => {
       setInitialStrokes(data.strokes);
-      if (data.croquis) setCroquisItems(data.croquis);
-      if (data.stickyNotes) setStickyNotes(data.stickyNotes);
-      if (data.textItems) setTextItems(data.textItems);
+      if (data.croquis) {
+        setCroquisItems(data.croquis);
+      }
+      if (data.stickyNotes) {
+        setStickyNotes(data.stickyNotes);
+      }
+      if (data.textItems) {
+        setTextItems(data.textItems);
+      }
     },
   });
 
