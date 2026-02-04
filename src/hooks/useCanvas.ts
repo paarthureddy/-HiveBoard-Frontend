@@ -334,6 +334,26 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
     requestRedrawRef.current();
   }, []);
 
+  const setZoomLevel = useCallback((newScale: number, center?: { x: number, y: number }) => {
+    newScale = Math.min(Math.max(newScale, 0.05), 5); // Clamping
+
+    if (center) {
+      const scale = scaleRef.current;
+      const offset = offsetRef.current;
+      const worldX = (center.x - offset.x) / scale;
+      const worldY = (center.y - offset.y) / scale;
+
+      const newOffsetX = center.x - worldX * newScale;
+      const newOffsetY = center.y - worldY * newScale;
+
+      offsetRef.current = { x: newOffsetX, y: newOffsetY };
+    }
+
+    scaleRef.current = newScale;
+    setScaleUI(newScale); // Sync UI state
+    requestRedrawRef.current();
+  }, []);
+
   // --- Standard Actions ---
   const clearCanvas = useCallback(() => {
     setStrokes([]);
@@ -415,6 +435,7 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
     scale: scaleUI, // Read-only state for UI
     pan,            // Direct Ref mutation
     zoom,           // Direct Ref mutation
+    setZoomLevel,    // Direct Ref mutation
 
     // Low-level Ref access if truly needed by component
     scaleRef,
