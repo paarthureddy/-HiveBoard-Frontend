@@ -7,7 +7,7 @@
     "scripts": {
         "dev": "nodemon index.js",
         "start": "node index.js",
-        "lint": "echo \"No linting configured for backend yet\""
+        "lint": "echo 'Linting not configured yet' && exit 0"
     },
     "keywords": [
         "express",
