@@ -7,7 +7,7 @@ import { useCanvas } from "@/hooks/useCanvas";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGuest } from "@/contexts/GuestContext";
 import { useSocket } from "@/hooks/useSocket";
-import { joinRoom, leaveRoom, sendStroke, sendPoint, sendClearCanvas, sendUndo, requestCanvasState, sendMessage, sendAddCroquis, sendUpdateCroquis, sendAddSticky, sendUpdateSticky, sendDeleteSticky, sendAddText, sendUpdateText, sendDeleteText } from "@/lib/socket";
+import { joinRoom, leaveRoom, sendStroke, sendPoint, sendClearCanvas, sendUndo, requestCanvasState, sendMessage, sendAddCroquis, sendUpdateCroquis, sendAddSticky, sendUpdateSticky, sendDeleteSticky, sendAddText, sendUpdateText, sendDeleteText, sendUpdateStroke } from "@/lib/socket";
 import { meetingsAPI } from "@/lib/api";
 import Toolbar from "@/components/canvas/Toolbar";
 import ChatPanel from "@/components/canvas/ChatPanel";
@@ -629,6 +629,9 @@ const Canvas = () => {
     onTextDeleted: (data) => {
       setTextItems(prev => prev.filter(t => t.id !== data.id));
     },
+    onStrokeUpdated: (data) => {
+      updateStroke(data.id, data.updates);
+    },
     onCanvasState: (data) => {
       setInitialStrokes(data.strokes);
       if (data.croquis) {
@@ -757,6 +760,16 @@ const Canvas = () => {
           points: newPoints,
           // Ensure center is set for rotation
           center: stroke.center || { x: currentBounds.x + currentBounds.width / 2, y: currentBounds.y + currentBounds.height / 2 }
+        });
+
+        sendUpdateStroke({
+          meetingId: meetingId || undefined,
+          id: selectedObject.id,
+          updates: {
+            ...updates,
+            points: newPoints,
+            center: stroke.center || { x: currentBounds.x + currentBounds.width / 2, y: currentBounds.y + currentBounds.height / 2 }
+          }
         });
       }
     }
