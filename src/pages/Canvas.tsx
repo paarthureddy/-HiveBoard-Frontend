@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
+import { isPointInPolygon } from "@/lib/geometry";
 import html2canvas from 'html2canvas';
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -137,7 +138,9 @@ const Canvas = () => {
     zoom,
     setZoomLevel,
     getCanvasPoint,
-    offsetRef
+    offsetRef,
+    fillColor,
+    setFillColor
   } = useCanvas({
     onDrawStroke: (stroke) => {
       // Broadcast stroke
@@ -309,6 +312,9 @@ const Canvas = () => {
       // Iterate in reverse to find top-most
       // Hit Test Strokes - Increased threshold for better UX
       const hitStroke = [...strokes].reverse().find(s => {
+        if (s.isFill) {
+          return isPointInPolygon({ x: point.x, y: point.y }, s.points);
+        }
         const threshold = 20 / scale;
         return s.points.some(p => Math.hypot(p.x - point.x, p.y - point.y) < threshold);
       });
@@ -793,6 +799,10 @@ const Canvas = () => {
   // Delete key handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't delete if typing in an input or textarea
+      if (document.activeElement instanceof HTMLTextAreaElement || document.activeElement instanceof HTMLInputElement) {
+        return;
+      }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedObject && !isEditingZoom) {
         handleObjectDelete();
       }
@@ -977,6 +987,51 @@ const Canvas = () => {
 
         <div className="flex flex-col items-end gap-2">
           <div className="flex items-center gap-1 pointer-events-auto backdrop-blur-md border border-[rgb(95,74,139)] shadow-sm rounded-2xl px-2 py-1.5" style={{ backgroundColor: 'rgba(95, 74, 139, 0.75)' }}>
+            {/* Zoom Controls moved here */}
+            <div className="flex items-center gap-1 border-r border-white/20 pr-2 mr-1">
+              <button
+                onClick={() => {
+                  const canvas = canvasRef.current;
+                  if (canvas) {
+                    const rect = canvas.getBoundingClientRect();
+                    zoom(-0.1, { x: rect.width / 2, y: rect.height / 2 });
+                  }
+                }}
+                className="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors text-[rgb(245,244,235)]"
+              >
+                <Minus className="w-3 h-3" />
+              </button>
+              <input
+                type="text"
+                value={isEditingZoom ? zoomInputValue : `${(scale * 100).toFixed(0)}%`}
+                onChange={(e) => {
+                  setIsEditingZoom(true);
+                  const val = e.target.value.replace(/[^0-9]/g, '');
+                  setZoomInputValue(val);
+                }}
+                onBlur={handleZoomCommit}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleZoomCommit();
+                    e.currentTarget.blur();
+                  }
+                }}
+                className="w-10 text-center bg-transparent border-none outline-none font-semibold text-xs select-none p-0 focus:ring-0 text-[rgb(245,244,235)]"
+              />
+              <button
+                onClick={() => {
+                  const canvas = canvasRef.current;
+                  if (canvas) {
+                    const rect = canvas.getBoundingClientRect();
+                    zoom(0.1, { x: rect.width / 2, y: rect.height / 2 });
+                  }
+                }}
+                className="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors text-[rgb(245,244,235)]"
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+            </div>
+            {/* End Zoom Controls */}
             <Button variant="ghost" size="icon-sm" className="h-8 w-8 text-[rgb(245,244,235)] hover:text-white hover:bg-white/10" onClick={handleShare} title="Share"><Share2 className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon-sm" className="h-8 w-8 text-[rgb(245,244,235)] hover:text-white hover:bg-white/10" onClick={handleExport} title="Export"><Download className="w-4 h-4" /></Button>
             <DropdownMenu>
@@ -1040,18 +1095,22 @@ const Canvas = () => {
 
             {!isAuthenticated && <Button variant="elegant" size="sm" className="h-8 text-xs ml-2" asChild><Link to="/auth"><LogIn className="w-3 h-3 mr-1.5" /> Sign In</Link></Button>}
           </div>
-
-          <div className="pointer-events-auto backdrop-blur-md border border-[rgb(95,74,139)] shadow-sm rounded-2xl p-1" style={{ backgroundColor: 'rgba(95, 74, 139, 0.75)' }}>
-            <UserPresence
-              users={participants.map((p, i) => ({ id: p.userId || p.guestId || p.socketId, name: p.name, role: p.isOwner ? 'owner' : (p.userId ? 'editor' : 'viewer'), color: PRESENCE_COLORS[i % PRESENCE_COLORS.length], isOnline: true }))}
-              currentUserId={user?._id || guestUser?.guestId || ''}
-              onClick={() => setIsParticipantsListOpen(!isParticipantsListOpen)}
-              vertical={true}
-              maxVisible={4}
-            />
-          </div>
+          {/* UserPresence removed/moved from here */}
         </div>
       </motion.header>
+
+      {/* Participants / UserPresence Sidebar on the Right */}
+      <div className="fixed right-4 top-24 flex flex-col gap-2 z-40 pointer-events-none">
+        <div className="pointer-events-auto backdrop-blur-md border border-[rgb(95,74,139)] shadow-sm rounded-2xl p-1" style={{ backgroundColor: 'rgba(95, 74, 139, 0.75)' }}>
+          <UserPresence
+            users={participants.map((p, i) => ({ id: p.userId || p.guestId || p.socketId, name: p.name, role: p.isOwner ? 'owner' : (p.userId ? 'editor' : 'viewer'), color: PRESENCE_COLORS[i % PRESENCE_COLORS.length], isOnline: true }))}
+            currentUserId={user?._id || guestUser?.guestId || ''}
+            onClick={() => setIsParticipantsListOpen(!isParticipantsListOpen)}
+            vertical={true}
+            maxVisible={4}
+          />
+        </div>
+      </div>
 
       <div ref={contentRef} className="flex-1 relative overflow-hidden bg-canvas-bg"
         onMouseDown={handleCanvasMouseDown}
@@ -1080,8 +1139,21 @@ const Canvas = () => {
                 onChange={(e) => handleNoteChange(note.id, e.target.value)}
                 className="w-full h-full bg-transparent resize-none border-none outline-none font-handwriting text-lg"
                 placeholder="Type here..."
-                onMouseDown={(e) => e.stopPropagation()} // Allow text selection without dragging note?
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  if (tool === 'select') {
+                    setSelectedObject({ id: note.id, type: 'sticky' });
+                  }
+                }}
               />
+              {selectedObject?.id === note.id && (
+                <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-popover/95 backdrop-blur border border-border rounded-xl shadow-xl flex items-center p-1.5 gap-2 z-50 pointer-events-auto" onMouseDown={e => e.stopPropagation()}>
+                  <button onClick={() => {
+                    setStickyNotes(prev => prev.filter(n => n.id !== note.id));
+                    setSelectedObject(null);
+                  }} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-destructive" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                </div>
+              )}
             </div>
           ))}
           {textItems.map(item => (
@@ -1106,7 +1178,7 @@ const Canvas = () => {
           ))}
 
           {/* Render Selection Transformer Overlay */}
-          {activeTransformerProps && selectedObject && (
+          {tool === 'select' && activeTransformerProps && selectedObject && (
             <SelectTransformer
               x={activeTransformerProps.x}
               y={activeTransformerProps.y}
@@ -1184,58 +1256,30 @@ const Canvas = () => {
 
 
 
-      <Toolbar tool={tool} setTool={(newTool) => { if (!handleEditAttempt()) return; setTool(newTool); }} brushColor={brushColor} setBrushColor={(color) => { if (!handleEditAttempt()) return; setBrushColor(color); }} brushWidth={brushWidth} setBrushWidth={(width) => { if (!handleEditAttempt()) return; setBrushWidth(width); }} stickyColor={stickyColor} setStickyColor={setStickyColor} onUndo={handleUndo} onClear={handleClearCanvas} onAddCroquis={handleAddCroquis} />
+      <Toolbar
+        tool={tool}
+        setTool={(newTool) => {
+          if (!handleEditAttempt()) return;
+          setTool(newTool);
+          setSelectedObject(null);
+        }}
+        brushColor={brushColor}
+        setBrushColor={(color) => { if (!handleEditAttempt()) return; setBrushColor(color); }}
+        brushWidth={brushWidth}
+        setBrushWidth={(width) => { if (!handleEditAttempt()) return; setBrushWidth(width); }}
+        stickyColor={stickyColor}
+        setStickyColor={setStickyColor}
+        fillColor={fillColor}
+        setFillColor={setFillColor}
+        onUndo={handleUndo}
+        onClear={handleClearCanvas}
+        onAddCroquis={handleAddCroquis}
+      />
       <ParticipantsList participants={participants} currentUserId={user?._id} currentGuestId={guestUser?.guestId} isOpen={isParticipantsListOpen} onClose={() => setIsParticipantsListOpen(false)} />
       <ChatPanel messages={messages} users={participants.map((p, i) => ({ id: p.userId || p.guestId || p.socketId, name: p.name, role: p.isOwner ? 'owner' : (p.userId ? 'editor' : 'viewer'), color: PRESENCE_COLORS[i % PRESENCE_COLORS.length], isOnline: true }))} currentUserId={user?._id || guestUser?.guestId || ''} onSendMessage={handleSendMessage} isOpen={isChatOpen} onToggle={() => { setIsChatOpen(!isChatOpen); if (!isChatOpen) setIsAiChatOpen(false); }} />
       <AiChatPanel isOpen={isAiChatOpen} onToggle={() => { setIsAiChatOpen(!isAiChatOpen); if (!isAiChatOpen) setIsChatOpen(false); }} stickyNotes={stickyNotes} textItems={textItems} />
 
-      <div className="fixed bottom-6 left-44 h-14 px-1.5 rounded-full bg-card/80 backdrop-blur-md border border-border shadow-elevated flex items-center gap-1 z-40 text-foreground transition-all hover:bg-card">
-        <button
-          onClick={() => {
-            const canvas = canvasRef.current;
-            if (canvas) {
-              const rect = canvas.getBoundingClientRect();
-              zoom(-0.1, { x: rect.width / 2, y: rect.height / 2 });
-            }
-          }}
-          className="w-10 h-10 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
-        >
-          <Minus className="w-4 h-4" />
-        </button>
-        <div className="min-w-[3.5rem] flex items-center justify-center">
-          <input
-            type="text"
-            value={isEditingZoom ? zoomInputValue : `${(scale * 100).toFixed(0)}%`}
-            onChange={(e) => {
-              setIsEditingZoom(true);
-              // Allow digits only
-              const val = e.target.value.replace(/[^0-9]/g, '');
-              setZoomInputValue(val);
-            }}
-            onBlur={handleZoomCommit}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleZoomCommit();
-                e.currentTarget.blur();
-              }
-            }}
-            className="w-12 text-center bg-transparent border-none outline-none font-semibold text-sm select-none p-0 focus:ring-0"
-            style={{ textAlign: 'center' }}
-          />
-        </div>
-        <button
-          onClick={() => {
-            const canvas = canvasRef.current;
-            if (canvas) {
-              const rect = canvas.getBoundingClientRect();
-              zoom(0.1, { x: rect.width / 2, y: rect.height / 2 });
-            }
-          }}
-          className="w-10 h-10 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
-      </div>
+
 
 
       <LoginPromptModal isOpen={showLoginPrompt} onClose={() => setShowLoginPrompt(false)} onSuccess={() => { setShowLoginPrompt(false); window.location.reload(); }} />
