@@ -13,6 +13,7 @@ export interface Stroke {
   userId: string;
   rotation?: number; // radians
   center?: Point; // Pivot for rotation
+  isFill?: boolean; // If true, points define a filled polygon
 }
 
 export interface User {

@@ -10,7 +10,7 @@ import {
   Palette,
   StickyNote,
   Type,
-  Shirt,
+  PaintBucket,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import m1 from "@/assets/Croquis Library/m1.png";
@@ -31,23 +31,25 @@ const CROQUIS_ASSETS = {
   male: [m1, m2, m3, m4, m5],
   mannequin: [mannequin]
 };
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState } from "react";
 
 interface ToolbarProps {
-  tool: 'brush' | 'eraser' | 'select' | 'sticky' | 'text';
-  setTool: (tool: 'brush' | 'eraser' | 'select' | 'sticky' | 'text') => void;
+  tool: 'brush' | 'eraser' | 'select' | 'sticky' | 'text' | 'fill';
+  setTool: (tool: 'brush' | 'eraser' | 'select' | 'sticky' | 'text' | 'fill') => void;
   brushColor: string;
   setBrushColor: (color: string) => void;
   brushWidth: number;
   setBrushWidth: (width: number) => void;
   stickyColor?: string;
   setStickyColor?: (color: string) => void;
+  fillColor?: string;
+  setFillColor?: (color: string) => void;
   onAddCroquis: (src: string) => void;
   onUndo: () => void;
   onClear: () => void;
 }
 
-// Helper for slider inside floating dock item
+// Slider Component for Pencil/Eraser thickness
 const ToolIconWithSlider = ({
   icon: Icon,
   isActive,
@@ -61,31 +63,46 @@ const ToolIconWithSlider = ({
   onChange: (val: number) => void,
   max?: number
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnter = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setIsHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    timeoutRef.current = setTimeout(() => setIsHovered(false), 300);
+  };
+
   return (
-    <div className="relative group flex items-center justify-center w-full h-full">
-      {/* Slider Popup */}
-      <div
-        className="absolute bottom-6 flex flex-col items-center pb-8 hidden group-hover:flex z-50 pointer-events-none"
-      >
-        <div
-          className="p-3 bg-popover/95 backdrop-blur-md border border-border/50 rounded-2xl shadow-elevated animate-in fade-in slide-in-from-bottom-2 pointer-events-auto"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="h-28 w-4 flex items-center justify-center pb-1">
-            <Slider
-              defaultValue={[value]}
-              value={[value]}
-              max={max}
-              min={1}
-              step={1}
-              orientation="vertical"
-              onValueChange={(vals) => onChange(vals[0])}
-              className="h-24 w-4"
-            />
+    <div
+      className="relative flex items-center justify-center w-full h-full"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {isHovered && (
+        <div className="absolute left-[calc(100%+24px)] top-1/2 -translate-y-1/2 z-[100]">
+          <div
+            className="p-3 bg-popover/95 backdrop-blur-md border border-border/50 rounded-2xl shadow-xl animate-in fade-in slide-in-from-left-2 pointer-events-auto"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-1">
+              <Slider
+                value={[value]}
+                max={max}
+                min={1}
+                step={1}
+                onValueChange={(vals) => onChange(vals[0])}
+                className="w-32"
+              />
+              <span className="text-sm font-semibold text-foreground min-w-[45px]">{value}px</span>
+            </div>
           </div>
-          <span className="text-[10px] font-medium text-muted-foreground w-max mt-2">{value}px</span>
         </div>
-      </div>
+      )}
 
       <Icon className={cn(
         "w-5 h-5 transition-colors",
@@ -95,7 +112,7 @@ const ToolIconWithSlider = ({
   );
 };
 
-// Helper for color picker inside floating dock item
+// Color Picker Component for Brush
 const ColorPickerIcon = ({
   currentColor,
   onColorSelect
@@ -104,6 +121,17 @@ const ColorPickerIcon = ({
   onColorSelect: (color: string) => void
 }) => {
   const wheelRef = useRef<HTMLDivElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnter = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setIsHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    timeoutRef.current = setTimeout(() => setIsHovered(false), 300);
+  };
 
   const handleInteraction = (e: React.MouseEvent) => {
     if (!wheelRef.current) return;
@@ -113,69 +141,80 @@ const ColorPickerIcon = ({
     const x = e.clientX - centerX;
     const y = e.clientY - centerY;
 
-    // Calculate angle in degrees (0-360)
     const angle = Math.atan2(y, x) * (180 / Math.PI);
-    let degrees = angle + 90; // Adjust for CSS 0deg at top
+    let degrees = angle + 90;
     if (degrees < 0) degrees += 360;
 
-    // Set color using HSL
     onColorSelect(`hsl(${Math.round(degrees)}, 100%, 50%)`);
   };
 
   const GRAYSCALE = ['#000000', '#4A4A4A', '#808080', '#D3D3D3', '#FFFFFF'];
 
   return (
-    <div className="relative group flex items-center justify-center w-full h-full">
-      {/* Color Grid Popup */}
-      <div
-        className="absolute bottom-6 flex flex-col items-center pb-8 hidden group-hover:flex z-50 pointer-events-none"
-      >
-        <div
-          className="flex flex-col items-center gap-4 p-4 bg-popover/95 backdrop-blur-md border border-border/50 rounded-2xl shadow-elevated animate-in fade-in slide-in-from-bottom-2 w-max pointer-events-auto"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Color Wheel */}
+    <div
+      className="relative flex items-center justify-center w-full h-full"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {isHovered && (
+        <div className="absolute left-[calc(100%+24px)] top-1/2 -translate-y-1/2 z-[100]">
           <div
-            ref={wheelRef}
-            className="w-32 h-32 rounded-full cursor-crosshair shadow-sm active:scale-95 transition-transform"
-            style={{
-              background: `conic-gradient(
-                #FF0000 0deg 30deg,
-                #FF8000 30deg 60deg,
-                #FFFF00 60deg 90deg,
-                #80FF00 90deg 120deg,
-                #00FF00 120deg 150deg,
-                #00FF80 150deg 180deg,
-                #00FFFF 180deg 210deg,
-                #0080FF 210deg 240deg,
-                #0000FF 240deg 270deg,
-                #8000FF 270deg 300deg,
-                #FF00FF 300deg 330deg,
-                #FF0080 330deg 360deg
-              )`
-            }}
-            onClick={handleInteraction}
-            onMouseMove={(e) => {
-              if (e.buttons === 1) handleInteraction(e)
-            }}
-          />
+            className="flex flex-col items-center gap-4 p-4 bg-popover/95 backdrop-blur-md border border-border/50 rounded-2xl shadow-xl animate-in fade-in slide-in-from-left-2 pointer-events-auto"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <span className="text-xs font-semibold text-muted-foreground uppercase">Brush Color</span>
 
-          {/* Grayscale & Current */}
-          <div className="flex items-center gap-2">
-            {GRAYSCALE.map(color => (
-              <button
-                key={color}
-                className={cn(
-                  "w-5 h-5 rounded-full border border-border shadow-sm hover:scale-110 transition-transform",
-                  currentColor === color && "ring-2 ring-primary ring-offset-2"
-                )}
-                style={{ backgroundColor: color }}
-                onClick={() => onColorSelect(color)}
+            <div
+              ref={wheelRef}
+              className="w-36 h-36 rounded-full cursor-crosshair shadow-md active:scale-95 transition-transform"
+              style={{
+                background: `conic-gradient(
+                  #FF0000 0deg 30deg,
+                  #FF8000 30deg 60deg,
+                  #FFFF00 60deg 90deg,
+                  #80FF00 90deg 120deg,
+                  #00FF00 120deg 150deg,
+                  #00FF80 150deg 180deg,
+                  #00FFFF 180deg 210deg,
+                  #0080FF 210deg 240deg,
+                  #0000FF 240deg 270deg,
+                  #8000FF 270deg 300deg,
+                  #FF00FF 300deg 330deg,
+                  #FF0080 330deg 360deg
+                )`
+              }}
+              onClick={handleInteraction}
+              onMouseMove={(e) => {
+                if (e.buttons === 1) handleInteraction(e)
+              }}
+            />
+
+            <div className="flex items-center gap-2">
+              {GRAYSCALE.map(color => (
+                <button
+                  key={color}
+                  className={cn(
+                    "w-6 h-6 rounded-full border border-border shadow-sm hover:scale-110 transition-transform",
+                    currentColor === color && "ring-2 ring-primary ring-offset-2"
+                  )}
+                  style={{ backgroundColor: color }}
+                  onClick={() => onColorSelect(color)}
+                />
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg">
+              <div
+                className="w-8 h-8 rounded-md border-2 border-border shadow-sm"
+                style={{ backgroundColor: currentColor }}
               />
-            ))}
+              <span className="text-xs font-mono">{currentColor}</span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="relative">
         <Palette className="w-5 h-5 text-foreground" />
@@ -188,48 +227,81 @@ const ColorPickerIcon = ({
   );
 };
 
+// Croquis Library Component
 const CroquisPickerIcon = ({ onSelect }: { onSelect: (src: string) => void }) => {
   const [category, setCategory] = useState<'female' | 'male' | 'mannequin'>('female');
+  const [isHovered, setIsHovered] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnter = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setIsHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    timeoutRef.current = setTimeout(() => setIsHovered(false), 300);
+  };
 
   return (
-    <div className="relative group flex items-center justify-center w-full h-full">
-      <div className="absolute bottom-6 flex flex-col items-center pb-8 hidden group-hover:flex z-50 pointer-events-none">
-        <div
-          className="bg-popover/95 backdrop-blur-md border border-border/50 rounded-2xl shadow-elevated animate-in fade-in slide-in-from-bottom-2 pointer-events-auto w-64 p-3"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex gap-1 mb-3 justify-center bg-muted/50 p-1 rounded-lg">
-            {(['female', 'male', 'mannequin'] as const).map(cat => (
-              <button
-                key={cat}
-                onClick={() => setCategory(cat)}
-                className={cn(
-                  "flex-1 text-[10px] uppercase tracking-wider font-semibold px-2 py-1.5 rounded-md transition-all",
-                  category === cat ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-          <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto">
-            {CROQUIS_ASSETS[category].map((src, i) => (
-              <button
-                key={i}
-                onClick={() => onSelect(src)}
-                className="relative aspect-[3/5] border border-border/50 rounded-md overflow-hidden bg-white/50 hover:border-primary/50 hover:shadow-sm transition-all group/item"
-              >
-                <img src={src} alt="croquis" className="w-full h-full object-contain p-1" />
-              </button>
-            ))}
+    <div
+      className="relative flex items-center justify-center w-full h-full"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {isHovered && (
+        <div className="absolute left-[calc(100%+24px)] top-1/2 -translate-y-1/2 z-[100]">
+          <div
+            className="bg-popover/95 backdrop-blur-md border border-border/50 rounded-2xl shadow-xl p-4 w-72 animate-in fade-in slide-in-from-left-2 pointer-events-auto"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase mb-3 text-center">
+              Croquis Library
+            </h3>
+
+            <div className="flex gap-1 mb-3 bg-muted/50 p-1 rounded-lg">
+              {(['female', 'male', 'mannequin'] as const).map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setCategory(cat)}
+                  className={cn(
+                    "flex-1 text-[11px] uppercase tracking-wider font-semibold px-3 py-2 rounded-md transition-all",
+                    category === cat
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto pr-2">
+              {CROQUIS_ASSETS[category].map((src, i) => (
+                <button
+                  key={i}
+                  onClick={() => onSelect(src)}
+                  className="relative aspect-[3/5] border-2 border-border/50 rounded-lg overflow-hidden bg-white/50 hover:border-primary hover:shadow-md transition-all hover:scale-105"
+                >
+                  <img src={src} alt={`${category} ${i + 1}`} className="w-full h-full object-contain p-1" />
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
-      <img src={mannequinIcon} alt="Croquis" className="w-7 h-7 object-contain invert dark:invert-0 opacity-80 group-hover:opacity-100 transition-opacity" />
+      )}
+
+      <img
+        src={mannequinIcon}
+        alt="Croquis"
+        className="w-7 h-7 object-contain invert dark:invert-0 opacity-80 hover:opacity-100 transition-opacity"
+      />
     </div>
   );
 };
 
+// Sticky Note Color Picker
 const StickyPickerIcon = ({
   isActive,
   currentColor,
@@ -239,50 +311,154 @@ const StickyPickerIcon = ({
   currentColor?: string,
   onColorSelect?: (color: string) => void
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
+
   const PASTELS = [
-    '#fef3c7', // Yellow (amber-100)
-    '#fce7f3', // Pink (pink-100)
-    '#dbeafe', // Blue (blue-100)
-    '#dcfce7', // Green (green-100)
+    { color: '#fef3c7', name: 'Yellow' },
+    { color: '#fce7f3', name: 'Pink' },
+    { color: '#dbeafe', name: 'Blue' },
+    { color: '#dcfce7', name: 'Green' },
   ];
 
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnter = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setIsHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    timeoutRef.current = setTimeout(() => setIsHovered(false), 300);
+  };
+
   return (
-    <div className="relative group flex items-center justify-center w-full h-full">
-      {/* Sticky Color Popup */}
-      <div
-        className="absolute bottom-6 flex flex-col items-center pb-8 hidden group-hover:flex z-50 pointer-events-none"
-      >
-        <div
-          className="p-3 bg-popover/95 backdrop-blur-md border border-border/50 rounded-2xl shadow-elevated animate-in fade-in slide-in-from-bottom-2 pointer-events-auto"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex flex-col gap-2">
-            {PASTELS.map(color => (
-              <button
-                key={color}
-                className={cn(
-                  "w-6 h-6 rounded-md border border-border/50 shadow-sm hover:scale-110 transition-transform",
-                  currentColor === color && "ring-2 ring-primary ring-offset-2"
-                )}
-                style={{ backgroundColor: color }}
-                onClick={() => onColorSelect?.(color)}
-              />
-            ))}
+    <div
+      className="relative flex items-center justify-center w-full h-full"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {isHovered && (
+        <div className="absolute left-[calc(100%+24px)] top-1/2 -translate-y-1/2 z-[100]">
+          <div
+            className="p-4 bg-popover/95 backdrop-blur-md border border-border/50 rounded-2xl shadow-xl animate-in fade-in slide-in-from-left-2 pointer-events-auto"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <span className="text-xs font-semibold text-muted-foreground uppercase mb-3 block text-center">
+              Sticky Color
+            </span>
+            <div className="flex flex-col gap-2">
+              {PASTELS.map(({ color, name }) => (
+                <button
+                  key={color}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-lg border border-border/50 hover:border-primary transition-all",
+                    currentColor === color && "ring-2 ring-primary bg-primary/5"
+                  )}
+                  onClick={() => onColorSelect?.(color)}
+                >
+                  <div
+                    className="w-8 h-8 rounded-md border border-border shadow-sm"
+                    style={{ backgroundColor: color }}
+                  />
+                  <span className="text-sm font-medium">{name}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <StickyNote className={cn(
         "w-5 h-5 transition-colors",
         isActive ? "text-primary fill-primary/20" : "text-foreground"
       )} />
-      {/* Show tiny dot of current sticky color */}
+
       {currentColor && (
         <div
           className="absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-sm border border-card shadow-[0_0_0_1px_rgba(0,0,0,0.1)]"
           style={{ backgroundColor: currentColor }}
         />
       )}
+    </div>
+  );
+};
+
+// Fill Tool Color Picker
+const FillPickerIcon = ({
+  isActive,
+  currentColor,
+  onColorSelect,
+}: {
+  isActive: boolean,
+  currentColor: string,
+  onColorSelect: (color: string) => void
+}) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnter = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setIsHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    timeoutRef.current = setTimeout(() => setIsHovered(false), 300);
+  };
+
+  const FILL_COLORS = [
+    '#FF0000', '#FF8000', '#FFFF00', '#00FF00',
+    '#00FFFF', '#0000FF', '#FF00FF', '#FF0080',
+    '#000000', '#4A4A4A', '#808080', '#D3D3D3',
+    '#FFFFFF', '#8B4513', '#FFB6C1', '#E6E6FA',
+  ];
+
+  return (
+    <div
+      className="relative flex items-center justify-center w-full h-full"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {isHovered && (
+        <div className="absolute left-[calc(100%+24px)] top-1/2 -translate-y-1/2 z-[100]">
+          <div
+            className="p-4 bg-popover/95 backdrop-blur-md border border-border/50 rounded-2xl shadow-xl animate-in fade-in slide-in-from-left-2 pointer-events-auto"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <span className="text-xs font-semibold text-muted-foreground uppercase mb-3 block text-center">
+              Fill Color
+            </span>
+            <div className="grid grid-cols-4 gap-2">
+              {FILL_COLORS.map(color => (
+                <button
+                  key={color}
+                  className={cn(
+                    "w-8 h-8 rounded-lg border-2 border-border hover:scale-110 transition-transform shadow-sm",
+                    currentColor === color && "ring-2 ring-primary ring-offset-2"
+                  )}
+                  style={{ backgroundColor: color }}
+                  onClick={() => onColorSelect(color)}
+                  title={color}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="relative">
+        <PaintBucket className={cn(
+          "w-5 h-5 transition-colors",
+          isActive ? "text-primary fill-primary/20" : "text-foreground"
+        )} />
+        <div
+          className="absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full border border-card shadow-sm"
+          style={{ backgroundColor: currentColor }}
+        />
+      </div>
     </div>
   );
 };
@@ -299,11 +475,13 @@ const Toolbar = ({
   onAddCroquis,
   onUndo,
   onClear,
+  fillColor = '#000000',
+  setFillColor,
 }: ToolbarProps) => {
 
   const items = [
     {
-      title: "Croquis",
+      title: "Croquis Library",
       icon: <CroquisPickerIcon onSelect={onAddCroquis} />,
       onClick: () => { },
       disableMagnification: true,
@@ -330,17 +508,19 @@ const Toolbar = ({
           }}
         />
       ),
-      onClick: () => setTool('sticky')
+      onClick: () => setTool('sticky'),
+      disableMagnification: true,
     },
     {
-      title: "Color",
+      title: "Brush Color",
       icon: (
         <ColorPickerIcon
           currentColor={brushColor}
           onColorSelect={setBrushColor}
         />
       ),
-      onClick: () => { }, // Handled by inner buttons
+      onClick: () => { },
+      disableMagnification: true,
     },
     {
       title: "Pencil",
@@ -354,6 +534,7 @@ const Toolbar = ({
         />
       ),
       onClick: () => setTool('brush'),
+      disableMagnification: true,
     },
     {
       title: "Eraser",
@@ -367,6 +548,22 @@ const Toolbar = ({
         />
       ),
       onClick: () => setTool('eraser'),
+      disableMagnification: true,
+    },
+    {
+      title: "Fill Tool",
+      icon: (
+        <FillPickerIcon
+          isActive={tool === 'fill'}
+          currentColor={fillColor}
+          onColorSelect={(color) => {
+            setFillColor?.(color);
+            setTool('fill');
+          }}
+        />
+      ),
+      onClick: () => setTool('fill'),
+      disableMagnification: true,
     },
     {
       title: "Undo",
@@ -374,20 +571,19 @@ const Toolbar = ({
       onClick: onUndo,
     },
     {
-      title: "Clear",
+      title: "Clear Canvas",
       icon: <Trash2 className="w-5 h-5 text-destructive" />,
       onClick: onClear,
     },
   ];
 
   return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4 z-40 max-w-full">
-      {/* Main Dock */}
-      <FloatingDock
-        items={items}
-        desktopClassName="bg-card/90 backdrop-blur-xl border-border/50 shadow-2xl"
-      />
-    </div>
+    <FloatingDock
+      items={items}
+      orientation="vertical"
+      desktopClassName="fixed left-4 top-[55%] -translate-y-1/2 z-40"
+      mobileClassName="fixed left-4 top-[55%] -translate-y-1/2 z-40"
+    />
   );
 };
 

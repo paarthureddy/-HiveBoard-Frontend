@@ -51,7 +51,7 @@ const ChatPanel = ({
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.3 }}
         onClick={onToggle}
-        className="fixed bottom-6 left-6 w-14 h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-elevated hover:shadow-glow transition-all hover:scale-105 z-40"
+        className="fixed bottom-6 right-24 w-14 h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-elevated hover:shadow-glow transition-all hover:scale-105 z-40"
       >
         {isOpen ? (
           <X className="w-5 h-5" />
@@ -71,11 +71,11 @@ const ChatPanel = ({
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, x: -300 }}
+            initial={{ opacity: 0, x: 300 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -300 }}
+            exit={{ opacity: 0, x: 300 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed left-6 bottom-24 w-80 h-[500px] bg-card border border-border rounded-2xl shadow-elevated flex flex-col overflow-hidden z-30"
+            className="fixed right-24 bottom-24 w-80 h-[500px] bg-card border border-border rounded-2xl shadow-elevated flex flex-col overflow-hidden z-30"
           >
             {/* Header */}
             <div className="px-4 py-3 border-b border-border flex items-center justify-between">

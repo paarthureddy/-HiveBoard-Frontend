@@ -14,15 +14,16 @@ export const FloatingDock = ({
     items,
     desktopClassName,
     mobileClassName,
+    orientation = "horizontal",
 }: {
     items: { title: string; icon: React.ReactNode; href?: string; onClick?: () => void; disableMagnification?: boolean }[];
     desktopClassName?: string;
     mobileClassName?: string;
+    orientation?: "horizontal" | "vertical";
 }) => {
     return (
         <>
-            <FloatingDockDesktop items={items} className={desktopClassName} />
-            <FloatingDockMobile items={items} className={mobileClassName} />
+            <FloatingDockDesktop items={items} className={desktopClassName} orientation={orientation} />
         </>
     );
 };
@@ -34,98 +35,62 @@ const FloatingDockMobile = ({
     items: { title: string; icon: React.ReactNode; href?: string; onClick?: () => void; disableMagnification?: boolean }[];
     className?: string;
 }) => {
-    const [open, setOpen] = useState(false);
-    return (
-        <div className={cn("relative block md:hidden", className)}>
-            <AnimatePresence>
-                {open && (
-                    <motion.div
-                        layoutId="nav"
-                        className="absolute bottom-full mb-2 inset-x-0 flex flex-col gap-2"
-                    >
-                        {items.map((item, idx) => (
-                            <motion.div
-                                key={item.title}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{
-                                    opacity: 1,
-                                    y: 0,
-                                }}
-                                exit={{
-                                    opacity: 0,
-                                    y: 10,
-                                    transition: {
-                                        delay: idx * 0.05,
-                                    },
-                                }}
-                                transition={{ delay: (items.length - 1 - idx) * 0.05 }}
-                            >
-                                <div
-                                    onClick={item.onClick}
-                                    key={item.title}
-                                    className="h-10 w-10 rounded-full bg-secondary border border-border flex items-center justify-center"
-                                >
-                                    <div className="h-4 w-4">{item.icon}</div>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </motion.div>
-                )}
-            </AnimatePresence>
-            <button
-                onClick={() => setOpen(!open)}
-                className="h-10 w-10 rounded-full bg-secondary border border-border flex items-center justify-center"
-            >
-                <IconLayoutNavbarCollapse className="h-5 w-5 text-muted-foreground" />
-            </button>
-        </div>
-    );
+    return null;
 };
 
 const FloatingDockDesktop = ({
     items,
     className,
+    orientation,
 }: {
     items: { title: string; icon: React.ReactNode; href?: string; onClick?: () => void; disableMagnification?: boolean }[];
     className?: string;
+    orientation?: "horizontal" | "vertical";
 }) => {
-    const mouseX = useMotionValue(Infinity);
+    const mousePos = useMotionValue(Infinity);
     return (
         <motion.div
-            onMouseMove={(e) => mouseX.set(e.pageX)}
-            onMouseLeave={() => mouseX.set(Infinity)}
+            onMouseMove={(e) => mousePos.set(orientation === "vertical" ? e.pageY : e.pageX)}
+            onMouseLeave={() => mousePos.set(Infinity)}
             className={cn(
-                "mx-auto hidden md:flex h-14 gap-4 items-end rounded-2xl bg-card/80 backdrop-blur-md border border-border/50 px-4 pb-2 shadow-elevated",
+                "mx-auto flex gap-4 items-center rounded-2xl bg-card/80 backdrop-blur-md border border-border/50 shadow-elevated",
+                orientation === "vertical"
+                    ? "flex-col w-16 h-auto py-4 overflow-visible" // Vertical styles: allow popups to extend out
+                    : "flex-row h-16 px-4 max-w-[95vw] overflow-x-auto overflow-y-hidden", // Horizontal styles: scroll if needed
                 className
             )}
         >
             {items.map((item) => (
-                <IconContainer mouseX={mouseX} key={item.title} {...item} />
+                <IconContainer mousePos={mousePos} key={item.title} {...item} orientation={orientation} />
             ))}
         </motion.div>
     );
 };
 
 function IconContainer({
-    mouseX,
+    mousePos,
     title,
     icon,
     href,
     onClick,
     disableMagnification,
+    orientation,
 }: {
-    mouseX: MotionValue;
+    mousePos: MotionValue;
     title: string;
     icon: React.ReactNode;
     href?: string;
     onClick?: () => void;
     disableMagnification?: boolean;
+    orientation?: "horizontal" | "vertical";
 }) {
     const ref = useRef<HTMLDivElement>(null);
 
-    const distance = useTransform(mouseX, (val) => {
-        const bounds = ref.current?.getBoundingClientRect() ?? { x: 0, width: 0 };
-
+    const distance = useTransform(mousePos, (val) => {
+        const bounds = ref.current?.getBoundingClientRect() ?? { x: 0, width: 0, y: 0, height: 0 };
+        if (orientation === "vertical") {
+            return val - bounds.y - bounds.height / 2;
+        }
         return val - bounds.x - bounds.width / 2;
     });
 

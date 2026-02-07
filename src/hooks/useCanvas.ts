@@ -22,8 +22,9 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
   // Track remote live strokes: strokeId -> { points, color, width }
   const [remoteLivedStrokes, setRemoteLiveStrokes] = useState<Map<string, { points: Point[], color: string, width: number }>>(new Map());
   const [brushColor, setBrushColor] = useState('#1e1e1e');
+  const [fillColor, setFillColor] = useState('#1e1e1e'); // Separate color for bucket
   const [brushWidth, setBrushWidth] = useState(3);
-  const [tool, setTool] = useState<'brush' | 'eraser' | 'select' | 'sticky' | 'text'>('brush');
+  const [tool, setTool] = useState<'brush' | 'eraser' | 'select' | 'sticky' | 'text' | 'fill'>('brush');
 
   // Viewport/Camera state (Refs for performance)
   // We keep refs for the render loop to avoid re-renders on every mouse move
@@ -104,14 +105,131 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
 
   const startDrawing = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     // Only Draw if Left Click or Touch
-    // (Caller usually verifies button, but we double check)
     if ('button' in e && (e.button === 1 || e.button === 2)) return;
 
     // If Sticky tool, Text tool, or Select tool is active, don't draw strokes.
     if (tool === 'sticky' || tool === 'text' || tool === 'select') return;
 
+    // If Fill tool
+    if (tool === 'fill') {
+      const point = getCanvasPoint(e);
+      if (!point) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return;
+
+      // Prepare data for flood fill
+      const dpr = window.devicePixelRatio || 1;
+      const offset = offsetRef.current;
+      const scale = scaleRef.current;
+
+      const bufferX = Math.floor((point.x * scale + offset.x) * dpr);
+      const bufferY = Math.floor((point.y * scale + offset.y) * dpr);
+
+      if (bufferX < 0 || bufferX >= canvas.width || bufferY < 0 || bufferY >= canvas.height) return;
+
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imgData.data;
+      const w = canvas.width;
+      const h = canvas.height;
+
+      const pos = (bufferY * w + bufferX) * 4;
+      const targetR = data[pos];
+      const targetG = data[pos + 1];
+      const targetB = data[pos + 2];
+      const targetA = data[pos + 3];
+
+      const matchesTarget = (idx: number) => {
+        return Math.abs(data[idx] - targetR) < 30 &&
+          Math.abs(data[idx + 1] - targetG) < 30 &&
+          Math.abs(data[idx + 2] - targetB) < 30 &&
+          Math.abs(data[idx + 3] - targetA) < 30;
+      };
+
+      const visited = new Uint8Array(w * h);
+      const stack = [bufferX, bufferY];
+      const boundaryPoints: Point[] = [];
+      let unbounded = false;
+
+      while (stack.length > 0) {
+        const y = stack.pop()!;
+        const x = stack.pop()!;
+        const idx = (y * w + x);
+
+        if (visited[idx]) continue;
+        visited[idx] = 1;
+
+        const neighbors = [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]];
+        let isBoundary = false;
+
+        for (const [nx, ny] of neighbors) {
+          if (nx < 0 || nx >= w || ny < 0 || ny >= h) {
+            unbounded = true;
+            break;
+          }
+          const nIdx = (ny * w + nx);
+          const nPos = nIdx * 4;
+
+          if (visited[nIdx]) continue;
+
+          if (matchesTarget(nPos)) {
+            stack.push(nx, ny);
+          } else {
+            isBoundary = true;
+          }
+        }
+
+        if (unbounded) {
+          break;
+        }
+
+        if (isBoundary) {
+          boundaryPoints.push({
+            x: ((x / dpr) - offset.x) / scale,
+            y: ((y / dpr) - offset.y) / scale
+          });
+        }
+      }
+
+      if (unbounded) return;
+
+      // Sort points to form a polygon (Graham Scan / Angular Sort around centroid)
+      if (boundaryPoints.length > 2) {
+        // Calculate Centroid
+        let cx = 0, cy = 0;
+        boundaryPoints.forEach(p => { cx += p.x; cy += p.y; });
+        cx /= boundaryPoints.length;
+        cy /= boundaryPoints.length;
+
+        // Sort by angle
+        boundaryPoints.sort((a, b) => {
+          return Math.atan2(a.y - cy, a.x - cx) - Math.atan2(b.y - cy, b.x - cx);
+        });
+
+        // Create Fill Stroke
+        const newStroke: Stroke = {
+          id: crypto.randomUUID(),
+          points: boundaryPoints, // Downsample if needed
+          color: fillColor,
+          width: 0,
+          userId: 'current-user',
+          isFill: true
+        };
+        setStrokes(prev => [...prev, newStroke]);
+        if (onDrawStroke) onDrawStroke(newStroke);
+        setTool('select');
+        requestRedrawRef.current();
+      }
+      return;
+    }
+
     const point = getCanvasPoint(e);
     if (!point) return;
+
+    // Safety: Ensure we never draw a stroke if tool is 'fill'
+    if (tool === 'fill') return;
 
     setIsDrawing(true);
     currentStrokeIdRef.current = crypto.randomUUID();
@@ -127,7 +245,7 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
 
   const draw = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     if (!isDrawing) return;
-    if (tool === 'sticky' || tool === 'text' || tool === 'select') return;
+    if (tool === 'sticky' || tool === 'text' || tool === 'select' || tool === 'fill') return;
 
     const point = getCanvasPoint(e);
     if (!point) return;
@@ -149,7 +267,7 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
   const stopDrawing = useCallback(() => {
     if (!isDrawing || currentStroke.length === 0) return;
     // If Sticky tool, Text tool, or Select tool is active, don't draw strokes.
-    if (tool === 'sticky' || tool === 'text' || tool === 'select') return;
+    if (tool === 'sticky' || tool === 'text' || tool === 'select' || tool === 'fill') return;
 
     const newStroke: Stroke = {
       id: currentStrokeIdRef.current,
@@ -237,8 +355,8 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
 
     // Painting Helper
     const paintStroke = (stroke: Stroke) => {
-      const { points, color, width, rotation, center } = stroke;
-      if (points.length < 2) return;
+      const { points, color, width, rotation, center, isFill } = stroke;
+      if (points.length < 2 && !isFill) return;
 
       ctx.save();
 
@@ -258,25 +376,34 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
       } else {
         ctx.globalCompositeOperation = 'source-over';
         ctx.strokeStyle = color;
+        ctx.fillStyle = color;
       }
 
-      ctx.lineWidth = width;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
+      if (isFill) {
+        if (points.length > 2) {
+          ctx.moveTo(points[0].x, points[0].y);
+          for (let i = 1; i < points.length; i++) {
+            ctx.lineTo(points[i].x, points[i].y);
+          }
+          ctx.closePath();
+          ctx.fill();
+        }
+      } else {
+        ctx.lineWidth = width;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
 
-      ctx.moveTo(points[0].x, points[0].y);
-      for (let i = 1; i < points.length - 1; i++) {
-        const xc = (points[i].x + points[i + 1].x) / 2;
-        const yc = (points[i].y + points[i + 1].y) / 2;
-        ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length - 1; i++) {
+          const xc = (points[i].x + points[i + 1].x) / 2;
+          const yc = (points[i].y + points[i + 1].y) / 2;
+          ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+        }
+        if (points.length > 1) {
+          ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
+        }
+        ctx.stroke();
       }
-      if (points.length > 1) {
-        ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
-      }
-      ctx.stroke();
-
-      // Reset composite operation
-      ctx.stroke();
 
       // Reset composite operation
       ctx.restore(); // Restore from rotation/style
@@ -428,6 +555,8 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
     strokes,
     brushColor,
     setBrushColor,
+    fillColor,
+    setFillColor,
     brushWidth,
     setBrushWidth,
     tool,
