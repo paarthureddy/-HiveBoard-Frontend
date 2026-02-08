@@ -435,14 +435,14 @@ const Home = () => {
                                             )}
                                         </div>
 
-                                        <div className="flex items-center gap-4 text-sm text-[rgb(95,74,139)]">
+                                        <div className="flex flex-col gap-1 text-xs text-[rgb(95,74,139)]">
                                             <div className="flex items-center gap-1">
-                                                <Calendar className="w-4 h-4" />
-                                                <span>{new Date(meeting.createdAt).toLocaleDateString()}</span>
+                                                <Calendar className="w-3 h-3" />
+                                                <span>Created: {new Date(meeting.createdAt).toLocaleDateString()}</span>
                                             </div>
                                             <div className="flex items-center gap-1">
-                                                <Clock className="w-4 h-4" />
-                                                <span>{formatDistanceToNow(new Date(meeting.updatedAt), { addSuffix: true })}</span>
+                                                <Clock className="w-3 h-3" />
+                                                <span>Last used {formatDistanceToNow(new Date(meeting.updatedAt), { addSuffix: true, includeSeconds: true })}</span>
                                             </div>
                                         </div>
                                     </div>

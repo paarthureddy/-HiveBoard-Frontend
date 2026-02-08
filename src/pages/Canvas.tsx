@@ -45,6 +45,7 @@ import {
   Search,
   CircleHelp,
   Palette,
+  ImagePlus,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -1034,6 +1035,7 @@ const Canvas = () => {
               </button>
             </div>
             {/* End Zoom Controls */}
+            <Button variant="ghost" size="icon-sm" className="h-8 w-8 text-[rgb(245,244,235)] hover:text-white hover:bg-white/10" onClick={handleOpenImage} title="Add Image"><ImagePlus className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon-sm" className="h-8 w-8 text-[rgb(245,244,235)] hover:text-white hover:bg-white/10" onClick={handleShare} title="Share"><Share2 className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon-sm" className="h-8 w-8 text-[rgb(245,244,235)] hover:text-white hover:bg-white/10" onClick={handleExport} title="Export"><Download className="w-4 h-4" /></Button>
             <DropdownMenu>
@@ -1099,10 +1101,10 @@ const Canvas = () => {
           </div>
           {/* UserPresence removed/moved from here */}
         </div>
-      </motion.header>
+      </motion.header >
 
       {/* Participants / UserPresence Sidebar on the Right */}
-      <div className="fixed right-4 top-24 flex flex-col gap-2 z-40 pointer-events-none">
+      < div className="fixed right-4 top-24 flex flex-col gap-2 z-40 pointer-events-none" >
         <div className="pointer-events-auto backdrop-blur-md border border-[rgb(95,74,139)] shadow-sm rounded-2xl p-1" style={{ backgroundColor: 'rgba(95, 74, 139, 0.75)' }}>
           <UserPresence
             users={participants.map((p, i) => ({ id: p.userId || p.guestId || p.socketId, name: p.name, role: p.isOwner ? 'owner' : (p.userId ? 'editor' : 'viewer'), color: PRESENCE_COLORS[i % PRESENCE_COLORS.length], isOnline: true }))}
@@ -1112,7 +1114,7 @@ const Canvas = () => {
             maxVisible={4}
           />
         </div>
-      </div>
+      </div >
 
       <div ref={contentRef} className="flex-1 relative overflow-hidden bg-canvas-bg"
         onMouseDown={handleCanvasMouseDown}
@@ -1257,6 +1259,14 @@ const Canvas = () => {
       </div>
 
 
+
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept="image/*"
+        className="hidden"
+      />
 
       <Toolbar
         tool={tool}
