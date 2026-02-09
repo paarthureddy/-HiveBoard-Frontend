@@ -579,7 +579,12 @@ const Canvas = () => {
     onCanvasUpdated: (data) => { console.log('Canvas updated', data); },
     onStrokeDrawn: (data) => drawRemoteStroke(data.stroke),
     onPointDrawn: (data) => drawRemotePoint(data.point, data.strokeId, data.color, data.width),
-    onCanvasCleared: () => clearCanvasRemote(),
+    onCanvasCleared: () => {
+      clearCanvasRemote();
+      setStickyNotes([]);
+      setTextItems([]);
+      setCroquisItems([]);
+    },
     onStrokeUndone: () => undoRemote(),
     onChatHistory: (history) => {
       setMessages(history.map((msg: any) => ({

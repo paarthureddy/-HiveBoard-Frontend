@@ -244,7 +244,14 @@ export const setupSocketHandlers = (io) => {
                     if (data.meetingId) {
                         await Meeting.updateOne(
                             { _id: data.meetingId },
-                            { $set: { 'canvasData.strokes': [] } }
+                            {
+                                $set: {
+                                    'canvasData.strokes': [],
+                                    'canvasData.stickyNotes': [],
+                                    'canvasData.textItems': [],
+                                    'canvasData.croquis': []
+                                }
+                            }
                         );
                     }
                 }
