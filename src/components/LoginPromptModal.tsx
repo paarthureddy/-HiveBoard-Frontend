@@ -14,6 +14,13 @@ interface LoginPromptModalProps {
     onSuccess?: () => void;
 }
 
+/**
+ * Login Prompt Modal
+ * 
+ * A dialog that appears when a guest user attempts a restricted action (e.g., editing in read-only mode).
+ * It offers a quick way to Login or Register without leaving the current context completely,
+ * though successful auth acts as a full login.
+ */
 const LoginPromptModal: React.FC<LoginPromptModalProps> = ({
     isOpen,
     onClose,

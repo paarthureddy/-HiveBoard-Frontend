@@ -8,6 +8,12 @@ interface NavLinkCompatProps extends Omit<NavLinkProps, "className"> {
   pendingClassName?: string;
 }
 
+/**
+ * Custom Nav Link
+ * 
+ * A wrapper around React Router's NavLink to provide easier TailwindCSS integration
+ * for active/pending states.
+ */
 const NavLink = forwardRef<HTMLAnchorElement, NavLinkCompatProps>(
   ({ className, activeClassName, pendingClassName, to, ...props }, ref) => {
     return (

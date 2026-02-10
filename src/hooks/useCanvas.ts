@@ -10,16 +10,32 @@ export interface UseCanvasOptions {
   onViewUpdate?: (scale: number, offset: Point) => void;
 }
 
+/**
+ * useCanvas Hook
+ * 
+ * This is the core engine of the whiteboard application. It manages:
+ * 1. The Canvas State (strokes, current tool, colors).
+ * 2. User Interactions (drawing, erasing, panning, zooming).
+ * 3. Rendering Logic (using HTML5 Canvas 2D Context).
+ * 4. Coordinate Transformations (converting screen clicks to world coordinates).
+ * 
+ * It uses a "game loop" style rendering system with requestAnimationFrame for smooth performance.
+ */
 export const useCanvas = (options: UseCanvasOptions = {}) => {
   const { onDrawStroke, onDrawPoint, onClear, onUndo, onViewUpdate } = options;
+  // --- State Management ---
+  // Core canvas references
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gridCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Drawing state
   const [isDrawing, setIsDrawing] = useState(false);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [currentStroke, setCurrentStroke] = useState<Point[]>([]);
   const currentStrokeIdRef = useRef<string>(crypto.randomUUID());
 
-  // Track remote live strokes: strokeId -> { points, color, width }
+  // Remote User State (for live collaboration)
+  // Maps socketId to their current partial stroke
   const [remoteLivedStrokes, setRemoteLiveStrokes] = useState<Map<string, { points: Point[], color: string, width: number }>>(new Map());
   const [brushColor, setBrushColor] = useState('#1e1e1e');
   const [fillColor, setFillColor] = useState('#1e1e1e'); // Separate color for bucket
@@ -67,7 +83,9 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Convert Screen Coordinates (Event ClientXY) to World Coordinates
+  // --- Coordinate System ---
+  // Converts Client (Screen) coordinates to World (Canvas) coordinates.
+  // This handles the translation (pan) and scaling (zoom) logic.
   const getCanvasPoint = useCallback((e: React.MouseEvent | React.TouchEvent): Point | null => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
@@ -84,14 +102,11 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
       clientY = e.clientY;
     }
 
-    // CSS pixels relative to canvas
+    // CSS pixels relative to canvas element
     const screenX = clientX - rect.left;
     const screenY = clientY - rect.top;
 
-    // View Transform: Screen = (World * Scale) + Offset
-    // World = (Screen - Offset) / Scale
-
-    // Note: We use offsetRef in CSS-pixel units for convenience
+    // Transform to World Space: (Screen - Offset) / Scale
     const scale = scaleRef.current;
     const offset = offsetRef.current;
 

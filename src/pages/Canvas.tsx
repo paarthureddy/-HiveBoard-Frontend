@@ -62,6 +62,19 @@ import {
 
 const MOCK_MESSAGES: ChatMessage[] = [];
 
+/**
+ * Canvas Page (The Core App)
+ * 
+ * This is the main whiteboard interface. It orchestrates:
+ * 1. The Infinite Canvas (Pan/Zoom/Draw).
+ * 2. Real-time Collaboration (Socket.io integration).
+ * 3. Tools & Toolbar (Brush, Eraser, Sticky Notes, Text, Croquis).
+ * 4. User Presence (Cursors, Avatars).
+ * 5. Object Management (Moving, Resizing, Deleting).
+ * 
+ * It combines the `useCanvas` hook (rendering) with `useSocket` (networking)
+ * to create a seamless multiplayer experience.
+ */
 const Canvas = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -246,6 +259,15 @@ const Canvas = () => {
   }, []);
 
   // Mouse Handlers
+  // --- Interaction Handlers ---
+
+  /**
+   * Handles the start of a user interaction on the canvas (Mouse Down).
+   * dependent on the selected tool:
+   * - Brush/Eraser: Starts drawing a stroke.
+   * - Select: Starts a selection box or selects an object under cursor.
+   * - Pan: Starts moving the view.
+   */
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
     // If clicking on UI, ignore (usually handled by stopProp, but just in case)
     // Middle mouse or Spacebar -> Pan
@@ -400,6 +422,10 @@ const Canvas = () => {
   };
 
   // Croquis Actions
+  /**
+   * Adds a Croquis (Fashion Template) to the canvas.
+   * Loads the image, centers it in the viewport, and emits the event to other users.
+   */
   const handleAddCroquis = (src: string) => {
     const dpr = window.devicePixelRatio || 1;
     // Calculate center of view
@@ -562,7 +588,15 @@ const Canvas = () => {
   }, [pan, zoom, startDrawing, draw, stopDrawing, isReadOnly]);
 
 
-  // Setup Socket.io
+  // --- Socket Event Handlers ---
+  /**
+   * Initialize the Socket.io connection and define event listeners.
+   * This handles all real-time updates from the server, such as:
+   * - Users joining/leaving.
+   * - Drawing updates (strokes, points).
+   * - Object updates (sticky notes, text, croquis).
+   * - Chat messages.
+   */
   useSocket({
     onRoomJoined: (data) => {
       console.log('🎉 Room joined event:', data);

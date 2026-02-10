@@ -1,3 +1,9 @@
+/**
+ * useIsMobile Hook
+ * 
+ * A utility hook to detect if the current view is a mobile device (screen width < 768px).
+ * Responsive design helper.
+ */
 import * as React from "react";
 
 const MOBILE_BREAKPOINT = 768;

@@ -6,6 +6,16 @@ import { useAuth } from "@/contexts/AuthContext";
 
 import logo from "@/assets/hive-logo.jpg";
 
+/**
+ * Landing Page
+ * 
+ * The public-facing home page of the application.
+ * Features:
+ * - Hero section with call-to-action buttons.
+ * - Feature highlights (Real-time, AI, Sharing).
+ * - Navigation to Login or Demo Canvas.
+ * - Uses Framer Motion for animations.
+ */
 const Landing = () => {
   const { isAuthenticated } = useAuth();
 

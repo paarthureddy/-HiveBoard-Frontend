@@ -10,6 +10,15 @@ interface UserPresenceProps {
   maxVisible?: number;
 }
 
+/**
+ * User Presence Indicator
+ * 
+ * Displays a stack of avatars for currently online users.
+ * Features:
+ * - Shows online/offline status dots.
+ * - Handles overflow (e.g., "+3 others").
+ * - Displays role badges (optional).
+ */
 const UserPresence = ({ users, currentUserId, onClick, vertical = false, maxVisible = 4 }: UserPresenceProps) => {
   const onlineUsers = users.filter(u => u.isOnline);
   const visibleUsers = onlineUsers.slice(0, maxVisible);

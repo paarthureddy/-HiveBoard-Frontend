@@ -12,6 +12,16 @@ interface ParticipantsListProps {
     onClose: () => void;
 }
 
+/**
+ * Participants List Drawer
+ * 
+ * displays a list of all users currently connected to the session.
+ * Features:
+ * - Shows avatars and names.
+ * - Identifies the current user.
+ * - Distinguishes between Registered Users and Guests.
+ * - Shows the Session Owner.
+ */
 const ParticipantsList: React.FC<ParticipantsListProps> = ({
     participants,
     currentUserId,

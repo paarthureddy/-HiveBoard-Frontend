@@ -1,3 +1,13 @@
+/**
+ * Guest Context
+ * 
+ * This context manages temporary access for non-registered users (Guests).
+ * It allows users to join sessions via a link without creating an account.
+ * Key responsibilities:
+ * - Storing guest identity (Name, ID) in SessionStorage (cleared on browser close).
+ * - tracking if the current user is a guest (isGuest).
+ * - Setting read-only permissions for guests by default.
+ */
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 interface GuestUser {

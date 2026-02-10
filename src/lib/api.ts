@@ -2,6 +2,17 @@ import axios from 'axios';
 import type { LoginRequest, RegisterRequest, AuthResponse } from '@/types/auth';
 import type { Meeting, CreateMeetingRequest, UpdateMeetingRequest } from '@/types/meeting';
 
+/**
+ * API Client
+ * 
+ * Centralized Axios instance configuration.
+ * Features:
+ * - Base URL configuration.
+ * - Request Interceptor: Automatically attaches the JWT token from localStorage.
+ * - Response Interceptor: Handles global errors (e.g., 401 Unauthorized -> Logout).
+ * 
+ * Exports typed API methods for Auth, Meetings, Invites, and User data.
+ */
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // Create axios instance
