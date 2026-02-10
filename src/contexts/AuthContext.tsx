@@ -1,3 +1,13 @@
+/**
+ * Authentication Context
+ * 
+ * This context manages the global authentication state for registered users.
+ * It provides:
+ * - User state (current logged-in user).
+ * - Login/Register/Logout functions interacting with the backend API.
+ * - Google OAuth integration.
+ * - Session persistence via LocalStorage.
+ */
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authAPI } from '@/lib/api';
 import type { User, LoginRequest, RegisterRequest } from '@/types/auth';

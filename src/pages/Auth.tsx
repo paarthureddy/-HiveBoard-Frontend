@@ -10,6 +10,17 @@ import { useAuth } from "@/contexts/AuthContext";
 import logo from "@/assets/hive-logo.jpg";
 import { Loader2 } from "lucide-react";
 
+/**
+ * Authentication Page
+ * 
+ * This component provides the user interface for:
+ * 1. User Login (Email/Password).
+ * 2. User Registration (Name, Email, Password).
+ * 3. Google OAuth Login.
+ * 
+ * It uses a Tabbed interface to switch between Login and Register forms.
+ * It interacts with the AuthContext to perform actual API calls.
+ */
 const Auth = () => {
     const navigate = useNavigate();
     const { login, googleLogin, register, isLoading } = useAuth();

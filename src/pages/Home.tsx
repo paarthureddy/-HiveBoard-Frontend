@@ -39,6 +39,17 @@ import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import logo from '@/assets/hive-logo.jpg';
 
+/**
+ * Home Page (Dashboard)
+ * 
+ * The main dashboard for authenticated users. It displays:
+ * 1. A grid of existing projects/meetings.
+ * 2. Options to create new meetings or join existing ones.
+ * 3. Meeting management options (Rename, Delete, Share, Download).
+ * 4. User profile actions (Logout, Report).
+ * 
+ * It fetches data from the meetingsAPI and manages local state for modals.
+ */
 const Home = () => {
     // --- Hooks & State ---
     const { user, logout } = useAuth(); // Auth context for user data and logout

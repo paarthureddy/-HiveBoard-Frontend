@@ -18,6 +18,19 @@ interface SelectTransformerProps {
 
 const HANDLE_SIZE = 10;
 
+/**
+ * Select Transformer (Gizmo)
+ * 
+ * A visual overlay that appears on top of the selected object to allow manipulation.
+ * Functionality:
+ * - Rendered independently of the canvas content (HTML overlay).
+ * - Handles Drag-and-Drop for moving.
+ * - Handles Resizing via corner handles.
+ * - Handles Rotation via a top handle.
+ * - Provides a Delete button.
+ * 
+ * It calculates the new coordinates/dimensions in 'World Space' and calls `onUpdate`.
+ */
 export const SelectTransformer: React.FC<SelectTransformerProps> = ({
     x,
     y,

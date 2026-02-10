@@ -22,6 +22,15 @@ const INITIAL_MESSAGE: ChatMessage = {
     timestamp: new Date()
 };
 
+/**
+ * AI Chat Panel
+ * 
+ * A sliding drawer component that interfaces with the `/api/ai/chat` endpoint.
+ * Features:
+ * - Context-aware chatting (sends sticky notes/text content to AI).
+ * - Displays AI responses including text and generated images.
+ * - Markdown rendering for AI responses.
+ */
 const AiChatPanel = ({
     isOpen,
     onToggle,

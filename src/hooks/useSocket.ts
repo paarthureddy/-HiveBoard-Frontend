@@ -29,6 +29,17 @@ interface UseSocketOptions {
     onStrokeUpdated?: (data: { id: string; updates: any }) => void;
 }
 
+/**
+ * useSocket Hook
+ * 
+ * This hook manages the WebSocket connection for real-time collaboration.
+ * It serves as a bridge between the React application and the Socket.io client.
+ * 
+ * Features:
+ * - Connects to the backend socket server.
+ * - Proxies socket events to the provided callback functions (options).
+ * - Handles user joining/leaving, drawing updates, chat messages, and object manipulation events.
+ */
 export const useSocket = (options: UseSocketOptions = {}) => {
     const socketRef = useRef<Socket | null>(null);
     const optionsRef = useRef(options);

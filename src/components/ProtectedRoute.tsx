@@ -5,6 +5,14 @@ interface ProtectedRouteProps {
     children: React.ReactNode;
 }
 
+/**
+ * Protected Route Wrapper
+ * 
+ * A Higher-Order Component (HOC) that guards routes requiring authentication.
+ * - If loading: Shows a spinner.
+ * - If not authenticated: Redirects to /auth.
+ * - If authenticated: Renders children.
+ */
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     const { isAuthenticated, isLoading } = useAuth();
 

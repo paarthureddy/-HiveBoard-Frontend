@@ -25,6 +25,16 @@ interface MeetingRendererProps {
     onReady: () => void;
 }
 
+/**
+ * Meeting Renderer
+ * 
+ * A headless or visual component that renders the whiteboard content (strokes, notes, images)
+ * onto a read-only canvas/div. 
+ * 
+ * Primary Usage:
+ * - Generating thumbnails for the dashboard.
+ * - Exporting the board as an image (JPG/PNG) using `html2canvas`.
+ */
 const MeetingRenderer = ({ data, onReady }: MeetingRendererProps) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);

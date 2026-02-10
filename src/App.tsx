@@ -1,3 +1,13 @@
+/**
+ * Main Application Component
+ * 
+ * This component sets up the application shell, including:
+ * 1. Routing (React Router) - Defines public and protected routes.
+ * 2. Global Providers - QueryClient, AuthProvider, GuestProvider, TooltipProvider.
+ * 3. Global UI Elements - Toasters for notifications.
+ * 
+ * It manages navigation between Landing, Auth, Home, and Canvas pages.
+ */
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";

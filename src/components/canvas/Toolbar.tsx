@@ -64,7 +64,7 @@ const ToolIconWithSlider = ({
   max?: number
 }) => {
   const [isHovered, setIsHovered] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseEnter = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -122,7 +122,7 @@ const ColorPickerIcon = ({
 }) => {
   const wheelRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseEnter = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -231,7 +231,7 @@ const ColorPickerIcon = ({
 const CroquisPickerIcon = ({ onSelect }: { onSelect: (src: string) => void }) => {
   const [category, setCategory] = useState<'female' | 'male' | 'mannequin'>('female');
   const [isHovered, setIsHovered] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseEnter = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -320,7 +320,7 @@ const StickyPickerIcon = ({
     { color: '#dcfce7', name: 'Green' },
   ];
 
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseEnter = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -396,7 +396,7 @@ const FillPickerIcon = ({
   onColorSelect: (color: string) => void
 }) => {
   const [isHovered, setIsHovered] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseEnter = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -463,6 +463,16 @@ const FillPickerIcon = ({
   );
 };
 
+/**
+ * Floating Toolbar
+ * 
+ * The main control center for the whiteboard, created using `FloatingDock`.
+ * Tools:
+ * - Croquis Library: Drag and drop fashion templates.
+ * - Brushes/Erasers: With slider-based size/color controls.
+ * - Objects: Sticky Notes, Text.
+ * - Canvas Actions: Undo, Clear, Fill.
+ */
 const Toolbar = ({
   tool,
   setTool,

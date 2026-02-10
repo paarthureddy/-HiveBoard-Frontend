@@ -14,6 +14,15 @@ interface ChatPanelProps {
   onToggle: () => void;
 }
 
+/**
+ * Team Chat Panel
+ * 
+ * A sliding drawer for real-time text chat between participants.
+ * Features:
+ * - Displays message history.
+ * - Distinguishes between current user and others.
+ * - Shows online status count.
+ */
 const ChatPanel = ({
   messages,
   users,

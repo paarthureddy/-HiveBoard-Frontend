@@ -55,6 +55,14 @@ interface ReportData {
     memberSince: string;
 }
 
+/**
+ * User Report Modal
+ * 
+ * Displays analytics and activity statistics for the current user.
+ * Data Visualization:
+ * - Summary Cards (Total Meetings, Strokes, Shares).
+ * - Charts (Bar and Doughnut) using `chart.js` and `react-chartjs-2`.
+ */
 const UserReportModal = ({ isOpen, onClose }: UserReportModalProps) => {
     const [data, setData] = useState<ReportData | null>(null);
     const [loading, setLoading] = useState(true);

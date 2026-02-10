@@ -2,6 +2,15 @@ import { io, Socket } from 'socket.io-client';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
+/**
+ * Socket.io Client
+ * 
+ * Singleton module for managing the WebSocket connection.
+ * - `getSocket()`: Returns the single shared socket instance (lazy initialization).
+ * - `connectSocket()` / `disconnectSocket()`: Lifecycle management.
+ * - Exported functions (e.g., `sendStroke`, `joinRoom`) provide a typed interface
+ *   for emitting events to the server.
+ */
 let socket: Socket | null = null;
 
 export const getSocket = (): Socket => {

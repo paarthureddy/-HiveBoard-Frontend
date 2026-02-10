@@ -14,6 +14,12 @@ interface ShareModalProps {
     meetingTitle: string;
 }
 
+/**
+ * Share Modal
+ * 
+ * Allows users to generate and copy a unique invite link for the current session.
+ * It interacts with the `invitesAPI` to create a tokenized URL.
+ */
 const ShareModal: React.FC<ShareModalProps> = ({
     isOpen,
     onClose,

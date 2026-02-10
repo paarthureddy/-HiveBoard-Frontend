@@ -10,6 +10,18 @@ import { useGuest } from '@/contexts/GuestContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
+/**
+ * Join Session Page
+ * 
+ * This page handles users entering a whiteboard session via a shared link (invite token).
+ * Workflow:
+ * 1. Validates the invite token with the backend.
+ * 2. Displays meeting details (title, host, participant count).
+ * 3. Allows users to:
+ *    - Join as an authenticated user (if logged in).
+ *    - Join as a Guest (read-only) by providing a name.
+ *    - Login/Register to upgrade their access.
+ */
 const JoinSession = () => {
     const { token } = useParams<{ token: string }>();
     const navigate = useNavigate();
