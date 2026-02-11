@@ -73,19 +73,19 @@ export const setupSocketHandlers = (io) => {
                 }
 
                 if (room) {
-                    // Clean up stale connections (zombies from server restarts)
-                    // DISABLED FOR DEBUGGING - This was removing valid connections
-                    /* if (io.sockets.sockets) {
-                        const connectedSocketIds = io.sockets.sockets; // Map of socketId -> Socket
-                        const initialCount = room.activeConnections.length;
-                        room.activeConnections = room.activeConnections.filter(conn =>
-                            connectedSocketIds.has(conn.socketId)
-                        );
-                        const finalCount = room.activeConnections.length;
-                        if (initialCount !== finalCount) {
-                            console.log(`🧹 Creating room: Removed ${initialCount - finalCount} stale connections`);
-                        }
-                    } */
+                    // Clean up duplicate connections for the same user/guest
+                    const initialCount = room.activeConnections.length;
+                    room.activeConnections = room.activeConnections.filter(conn => {
+                        if (conn.socketId === socket.id) return false;
+                        if (userId && conn.userId && conn.userId.toString() === userId.toString()) return false;
+                        if (guestId && conn.guestId === guestId) return false;
+                        return true;
+                    });
+
+                    if (room.activeConnections.length !== initialCount) {
+                        console.log(`🧹 Creating room: Removed ${initialCount - room.activeConnections.length} duplicate connections`);
+                    }
+
                     // Add connection to active connections
                     room.addConnection({
                         socketId: socket.id,
@@ -143,7 +143,9 @@ export const setupSocketHandlers = (io) => {
                         // We send this only to the new user so they get the current board state
                         socket.emit('canvas-state', {
                             strokes: meeting.canvasData.strokes || [],
-                            // Add other types as we implement persistence for them
+                            stickyNotes: meeting.canvasData.stickyNotes || [],
+                            textItems: meeting.canvasData.textItems || [],
+                            croquis: meeting.canvasData.croquis || [],
                         });
                     }
 
@@ -248,12 +250,45 @@ export const setupSocketHandlers = (io) => {
         });
 
         // Croquis Events
-        socket.on('add-croquis', (data) => {
+        socket.on('add-croquis', async (data) => {
             socket.to(socket.roomId).emit('add-croquis', data);
+            if (data.meetingId) {
+                const meeting = await Meeting.findById(data.meetingId);
+                if (meeting) {
+                    const current = meeting.canvasData.croquis || [];
+                    meeting.canvasData = { ...meeting.canvasData, croquis: [...current, data.item] };
+                    meeting.markModified('canvasData');
+                    await meeting.save();
+                }
+            }
         });
 
-        socket.on('update-croquis', (data) => {
+        socket.on('update-croquis', async (data) => {
             socket.to(socket.roomId).emit('update-croquis', data);
+            if (data.meetingId) {
+                const meeting = await Meeting.findById(data.meetingId);
+                if (meeting) {
+                    const current = meeting.canvasData.croquis || [];
+                    const updated = current.map(c => c.id === data.id ? { ...c, ...data.updates } : c);
+                    meeting.canvasData = { ...meeting.canvasData, croquis: updated };
+                    meeting.markModified('canvasData');
+                    await meeting.save();
+                }
+            }
+        });
+
+        socket.on('delete-croquis', async (data) => {
+            socket.to(socket.roomId).emit('delete-croquis', data);
+            if (data.meetingId) {
+                const meeting = await Meeting.findById(data.meetingId);
+                if (meeting) {
+                    const current = meeting.canvasData.croquis || [];
+                    const updated = current.filter(c => c.id !== data.id);
+                    meeting.canvasData = { ...meeting.canvasData, croquis: updated };
+                    meeting.markModified('canvasData');
+                    await meeting.save();
+                }
+            }
         });
 
         // Chat Messages
@@ -295,29 +330,87 @@ export const setupSocketHandlers = (io) => {
         });
 
         // Sticky Notes
-        socket.on('add-sticky', (data) => {
+        socket.on('add-sticky', async (data) => {
             socket.to(socket.roomId).emit('add-sticky', data);
+            if (data.meetingId) {
+                const meeting = await Meeting.findById(data.meetingId);
+                if (meeting) {
+                    const current = meeting.canvasData.stickyNotes || [];
+                    meeting.canvasData = { ...meeting.canvasData, stickyNotes: [...current, data.note] };
+                    meeting.markModified('canvasData');
+                    await meeting.save();
+                }
+            }
         });
 
-        socket.on('update-sticky', (data) => {
+        socket.on('update-sticky', async (data) => {
             socket.to(socket.roomId).emit('update-sticky', data);
+            if (data.meetingId) {
+                const meeting = await Meeting.findById(data.meetingId);
+                if (meeting) {
+                    const current = meeting.canvasData.stickyNotes || [];
+                    const updated = current.map(n => n.id === data.id ? { ...n, ...data.updates } : n);
+                    meeting.canvasData = { ...meeting.canvasData, stickyNotes: updated };
+                    meeting.markModified('canvasData');
+                    await meeting.save();
+                }
+            }
         });
 
-        socket.on('delete-sticky', (data) => {
+        socket.on('delete-sticky', async (data) => {
             socket.to(socket.roomId).emit('delete-sticky', data);
+            if (data.meetingId) {
+                const meeting = await Meeting.findById(data.meetingId);
+                if (meeting) {
+                    const current = meeting.canvasData.stickyNotes || [];
+                    const updated = current.filter(n => n.id !== data.id);
+                    meeting.canvasData = { ...meeting.canvasData, stickyNotes: updated };
+                    meeting.markModified('canvasData');
+                    await meeting.save();
+                }
+            }
         });
 
         // Text Items
-        socket.on('add-text', (data) => {
+        socket.on('add-text', async (data) => {
             socket.to(socket.roomId).emit('add-text', data);
+            if (data.meetingId) {
+                const meeting = await Meeting.findById(data.meetingId);
+                if (meeting) {
+                    const current = meeting.canvasData.textItems || [];
+                    meeting.canvasData = { ...meeting.canvasData, textItems: [...current, data.item] };
+                    meeting.markModified('canvasData');
+                    await meeting.save();
+                }
+            }
         });
 
-        socket.on('update-text', (data) => {
+        socket.on('update-text', async (data) => {
             socket.to(socket.roomId).emit('update-text', data);
+            if (data.meetingId) {
+                const meeting = await Meeting.findById(data.meetingId);
+                if (meeting) {
+                    const current = meeting.canvasData.textItems || [];
+                    const updated = current.map(t => t.id === data.id ? { ...t, ...data.updates } : t);
+                    meeting.canvasData = { ...meeting.canvasData, textItems: updated };
+                    meeting.markModified('canvasData');
+                    await meeting.save();
+                }
+            }
         });
 
-        socket.on('delete-text', (data) => {
+        socket.on('delete-text', async (data) => {
             socket.to(socket.roomId).emit('delete-text', data);
+            if (data.meetingId) {
+                const meeting = await Meeting.findById(data.meetingId);
+                if (meeting) {
+                    const current = meeting.canvasData.textItems || [];
+                    const updated = current.filter(t => t.id !== data.id);
+                    meeting.canvasData = { ...meeting.canvasData, textItems: updated };
+                    meeting.markModified('canvasData');
+                    await meeting.save();
+                }
+            }
         });
 
 

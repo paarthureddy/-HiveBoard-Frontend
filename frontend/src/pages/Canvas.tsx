@@ -8,7 +8,7 @@ import { useCanvas } from "@/hooks/useCanvas";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGuest } from "@/contexts/GuestContext";
 import { useSocket } from "@/hooks/useSocket";
-import { joinRoom, leaveRoom, sendStroke, sendPoint, sendClearCanvas, sendUndo, requestCanvasState, sendMessage, sendAddCroquis, sendUpdateCroquis, sendAddSticky, sendUpdateSticky, sendDeleteSticky, sendAddText, sendUpdateText, sendDeleteText, sendUpdateStroke } from "@/lib/socket";
+import { joinRoom, leaveRoom, sendStroke, sendPoint, sendClearCanvas, sendUndo, requestCanvasState, sendMessage, sendAddCroquis, sendUpdateCroquis, sendDeleteCroquis, sendAddSticky, sendUpdateSticky, sendDeleteSticky, sendAddText, sendUpdateText, sendDeleteText, sendUpdateStroke } from "@/lib/socket";
 import { meetingsAPI } from "@/lib/api";
 import Toolbar from "@/components/canvas/Toolbar";
 import ChatPanel from "@/components/canvas/ChatPanel";
@@ -933,7 +933,10 @@ const Canvas = () => {
     if (selectedObject.type === 'text') handleTextDelete(selectedObject.id);
     if (selectedObject.type === 'croquis') {
       setCroquisItems(prev => prev.filter(c => c.id !== selectedObject.id));
-      // sendDeleteCroquis({ ... }) impl missing in example context but implied
+      sendDeleteCroquis({
+        meetingId: meetingId || undefined,
+        id: selectedObject.id
+      });
     }
     if (selectedObject.type === 'stroke') {
       setStrokes(prev => prev.filter(s => s.id !== selectedObject.id));

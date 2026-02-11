@@ -143,6 +143,11 @@ export const sendUpdateCroquis = (data: { meetingId?: string; id: string; update
     socket.emit('update-croquis', data);
 };
 
+export const sendDeleteCroquis = (data: { meetingId?: string; id: string; }): void => {
+    const socket = getSocket();
+    socket.emit('delete-croquis', data);
+};
+
 export const sendMessage = (data: {
     meetingId?: string;
     userId?: string;
@@ -211,6 +216,7 @@ export default {
     sendUndo,
     sendAddCroquis,
     sendUpdateCroquis,
+    sendDeleteCroquis,
     sendMessage,
     requestCanvasState,
     sendAddSticky,
