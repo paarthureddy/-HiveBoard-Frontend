@@ -848,19 +848,31 @@ const Canvas = () => {
     setShowResetConfirm(true);
   };
 
-  const confirmClearCanvas = () => {
+  const confirmClearCanvas = async () => {
     clearCanvas();
     setStickyNotes([]);
     setTextItems([]);
     setCroquisItems([]);
-    // Ensure socket emit happens here if clearCanvas doesn't
-    // Note: useCanvas passes onClear prop which emits sendClearCanvas
-    // Wait, useCanvas hook calls onClear when clearCanvas() is called? 
-    // Let's check useCanvas.
-    // Assuming clearCanvas() from hook triggers onClear callback which emits socket.
-    // If NOT, we need to emit here manually. 
-    // Looking at line 145/173: "onClear: () => { sendClearCanvas(...) }" 
-    // So calling clearCanvas() is enough.
+
+    // Update thumbnail in DB to reflect empty canvas
+    // Wait for render cycle to clear canvas visually
+    setTimeout(async () => {
+      if (meetingId && containerRef.current) {
+        try {
+          const canvas = await html2canvas(containerRef.current, {
+            scale: 0.2, // Small scale for thumbnail
+            useCORS: true,
+            backgroundColor: canvasBg || '#ffffff',
+            logging: false,
+          });
+          const thumbnail = canvas.toDataURL('image/jpeg', 0.6);
+          await meetingsAPI.update(meetingId, { thumbnail });
+          console.log('Thumbnail updated (cleared)');
+        } catch (error) {
+          console.error('Failed to update thumbnail:', error);
+        }
+      }
+    }, 500);
   };
 
   const handleUndo = () => {
