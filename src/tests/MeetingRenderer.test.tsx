@@ -12,10 +12,10 @@ HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
     lineTo: vi.fn(),
     stroke: vi.fn(),
     quadraticCurveTo: vi.fn(),
-    set strokeStyle(val) {},
-    set lineWidth(val) {},
-    set lineCap(val) {},
-    set lineJoin(val) {},
+    set strokeStyle(val) { },
+    set lineWidth(val) { },
+    set lineCap(val) { },
+    set lineJoin(val) { },
 } as any));
 
 describe('MeetingRenderer Component', () => {
@@ -26,7 +26,7 @@ describe('MeetingRenderer Component', () => {
             { id: '1', x: 100, y: 100, text: 'Hello Sticky', color: 'yellow', width: 200, height: 200 }
         ],
         textItems: [
-            { id: '2', x: 300, y: 300, text: 'Hello Text', color: 'black' }
+            { id: '2', x: 300, y: 300, text: 'Hello Text', color: 'black', fontSize: 16 }
         ],
         croquis: []
     };
@@ -49,7 +49,7 @@ describe('MeetingRenderer Component', () => {
 
     it('should call onReady callback', async () => {
         render(<MeetingRenderer data={mockData} onReady={mockOnReady} />);
-        
+
         // Wait for the persistent useEffect timeout
         await waitFor(() => {
             expect(mockOnReady).toHaveBeenCalled();
@@ -58,9 +58,9 @@ describe('MeetingRenderer Component', () => {
 
     it('should handle missing data gracefully', () => {
         const emptyData = { strokes: [] };
-        // @ts-ignore - testing runtime safety for partial data
+        // Testing runtime safety for partial data
         render(<MeetingRenderer data={emptyData} onReady={mockOnReady} />);
-        
+
         // Should not crash
         const canvas = document.querySelector('canvas');
         expect(canvas).toBeInTheDocument();

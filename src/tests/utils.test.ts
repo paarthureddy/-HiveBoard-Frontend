@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { cn } from '@/lib/utils';
-    
+
 // The `cn` function is a utility to merge class names (using clsx and tailwind-merge)
 describe('cn utility', () => {
     it('should merge class names correctly', () => {
@@ -10,6 +10,7 @@ describe('cn utility', () => {
 
     it('should handle conditional class names', () => {
         // True condition adds class, false condition omits it
+        // eslint-disable-next-line
         const result = cn('c1', true && 'c2', false && 'c3');
         expect(result).toBe('c1 c2');
     });

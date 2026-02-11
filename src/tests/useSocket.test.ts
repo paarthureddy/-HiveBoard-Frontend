@@ -13,7 +13,7 @@ vi.mock('../lib/socket.ts', () => ({
 
 describe('useSocket Hook', () => {
     let mockSocket: any;
-    let eventHandlers: Record<string, Function> = {};
+    let eventHandlers: Record<string, (...args: any[]) => void> = {};
 
     beforeEach(() => {
         // Reset event handlers map
@@ -41,16 +41,16 @@ describe('useSocket Hook', () => {
 
     it('should connect socket on mount', () => {
         renderHook(() => useSocket());
-        
+
         expect(socketLib.getSocket).toHaveBeenCalled();
         expect(socketLib.connectSocket).toHaveBeenCalled();
     });
 
     it('should disconnect socket on unmount', () => {
         const { unmount } = renderHook(() => useSocket());
-        
+
         unmount();
-        
+
         expect(socketLib.disconnectSocket).toHaveBeenCalled();
     });
 
@@ -65,7 +65,7 @@ describe('useSocket Hook', () => {
 
     it('should cleanup event listeners on unmount', () => {
         const { unmount } = renderHook(() => useSocket());
-        
+
         unmount();
 
         expect(mockSocket.off).toHaveBeenCalledWith('room-joined', expect.any(Function));
@@ -74,18 +74,18 @@ describe('useSocket Hook', () => {
 
     it('should trigger callback when event is received', () => {
         const mockOnStrokeDrawn = vi.fn();
-        
+
         renderHook(() => useSocket({
             onStrokeDrawn: mockOnStrokeDrawn
         }));
 
         // Simulate incoming socket event
         const mockData = { stroke: { color: 'red' } };
-        
+
         // Find the handler for 'stroke-drawn' and call it
         const handler = eventHandlers['stroke-drawn'];
         expect(handler).toBeDefined();
-        
+
         act(() => {
             handler(mockData);
         });
