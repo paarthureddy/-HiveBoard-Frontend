@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +23,12 @@ import { Loader2 } from "lucide-react";
  */
 const Auth = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { login, googleLogin, register, isLoading } = useAuth();
+
+    // Get the redirect path from location state, default to /home
+    const fromLocation = location.state?.from;
+    const from = fromLocation ? `${fromLocation.pathname}${fromLocation.search}` : "/home";
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -34,7 +39,7 @@ const Auth = () => {
         try {
             if (credentialResponse.credential) {
                 await googleLogin(credentialResponse.credential);
-                navigate("/home");
+                navigate(from, { replace: true });
             }
         } catch (err: any) {
             setError(err.message || "Google Login failed");
@@ -46,7 +51,7 @@ const Auth = () => {
         setError("");
         try {
             await login({ email, password });
-            navigate("/home");
+            navigate(from, { replace: true });
         } catch (err: any) {
             setError(err.message || "Login failed");
         }
@@ -57,7 +62,7 @@ const Auth = () => {
         setError("");
         try {
             await register({ name, email, password });
-            navigate("/home");
+            navigate(from, { replace: true });
         } catch (err: any) {
             setError(err.message || "Registration failed");
         }

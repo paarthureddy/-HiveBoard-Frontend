@@ -1282,7 +1282,7 @@ const Canvas = () => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {!isAuthenticated && <Button variant="elegant" size="sm" className="h-8 text-xs ml-2" asChild><Link to="/auth"><LogIn className="w-3 h-3 mr-1.5" /> Sign In</Link></Button>}
+            {!isAuthenticated && <Button variant="elegant" size="sm" className="h-8 text-xs ml-2" asChild><Link to="/auth" state={{ from: location }}><LogIn className="w-3 h-3 mr-1.5" /> Sign In</Link></Button>}
           </div>
           {/* UserPresence removed/moved from here */}
         </div>
