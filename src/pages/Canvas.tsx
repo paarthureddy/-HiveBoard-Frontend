@@ -8,7 +8,7 @@ import { useCanvas } from "@/hooks/useCanvas";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGuest } from "@/contexts/GuestContext";
 import { useSocket } from "@/hooks/useSocket";
-import { joinRoom, leaveRoom, sendStroke, sendPoint, sendClearCanvas, sendUndo, requestCanvasState, sendMessage, sendAddCroquis, sendUpdateCroquis, sendDeleteCroquis, sendAddSticky, sendUpdateSticky, sendDeleteSticky, sendAddText, sendUpdateText, sendDeleteText, sendUpdateStroke } from "@/lib/socket";
+import { joinRoom, leaveRoom, sendStroke, sendPoint, sendClearCanvas, sendUndo, requestCanvasState, sendMessage, sendAddCroquis, sendUpdateCroquis, sendDeleteCroquis, sendAddSticky, sendUpdateSticky, sendDeleteSticky, sendAddText, sendUpdateText, sendDeleteText, sendUpdateStroke, getSocket } from "@/lib/socket";
 import { meetingsAPI } from "@/lib/api";
 import Toolbar from "@/components/canvas/Toolbar";
 import ChatPanel from "@/components/canvas/ChatPanel";
@@ -18,6 +18,7 @@ import ParticipantsList from "@/components/ParticipantsList";
 import ShareModal from "@/components/ShareModal";
 import LoginPromptModal from "@/components/LoginPromptModal";
 import ConfirmationModal from "@/components/ConfirmationModal";
+import AnalyticsPanel from "@/components/canvas/AnalyticsPanel";
 import { User, ChatMessage, PRESENCE_COLORS, StickyNote, TextItem, CroquisItem, Stroke } from "@/types/canvas";
 import type { Participant } from "@/types/room";
 import logo from "@/assets/hive-logo.jpg";
@@ -47,6 +48,7 @@ import {
   CircleHelp,
   Palette,
   ImagePlus,
+  Activity,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -84,7 +86,7 @@ const Canvas = () => {
   // Determine if the current user is a registered member or a guest
   const { user, isAuthenticated } = useAuth();
   const { guestUser, isGuest, setGuestUser } = useGuest();
-  const isReadOnly = !isAuthenticated; // Flag for restricted features
+  const isReadOnly = !isAuthenticated && !guestUser; // Flag for restricted features
 
   // --- URL Parameters ---
   // specific meeting and room IDs are extracted to connect to the correct session
@@ -165,17 +167,17 @@ const Canvas = () => {
   } = useCanvas({
     onDrawStroke: (stroke) => {
       // Broadcast stroke
-      sendStroke({ meetingId: meetingId || undefined, stroke });
+      sendStroke({ meetingId: meetingId || undefined, roomId: roomIdRef.current || undefined, stroke });
     },
     onDrawPoint: (point, strokeId, color, width) => {
       // Broadcast point
-      sendPoint({ meetingId: meetingId || undefined, point, strokeId, color, width });
+      sendPoint({ meetingId: meetingId || undefined, roomId: roomIdRef.current || undefined, point, strokeId, color, width });
     },
     onClear: () => {
-      sendClearCanvas({ meetingId: meetingId || undefined });
+      sendClearCanvas({ meetingId: meetingId || undefined, roomId: roomIdRef.current || undefined });
     },
     onUndo: () => {
-      sendUndo({ meetingId: meetingId || undefined });
+      sendUndo({ meetingId: meetingId || undefined, roomId: roomIdRef.current || undefined });
     },
     onViewUpdate: (scale, offset) => {
       const transform = `translate(${offset.x}px, ${offset.y}px) scale(${scale})`;
@@ -195,7 +197,7 @@ const Canvas = () => {
   useSocket({
     // Initial State Load
     onCanvasState: (data) => {
-      console.log('Load Canvas State', data); // Debug
+      console.log('Load Canvas State', data);
       if (data.strokes) setInitialStrokes(data.strokes);
       if (data.stickyNotes) setStickyNotes(data.stickyNotes);
       if (data.textItems) setTextItems(data.textItems);
@@ -207,82 +209,117 @@ const Canvas = () => {
       setParticipants(users);
     },
     onRoomJoined: (data) => {
-      console.log('Joined Room', data);
-      if (data.participants) setParticipants(data.participants);
+      console.log('🎉 Room joined event:', data);
+      setParticipants(data.participants);
     },
     onUserJoined: (data) => {
-      console.log('User Joined', data);
-      if (data.participants) setParticipants(data.participants);
+      console.log('👋 User joined event:', data);
+      setParticipants(data.participants);
     },
     onUserLeft: (data) => {
-      if (data.participants) setParticipants(data.participants);
+      console.log('👋 User left event:', data);
+      setParticipants(data.participants);
     },
 
     // Real-time Drawing Events
-    onStrokeDrawn: ({ stroke }) => {
-      drawRemoteStroke(stroke);
-    },
-    onPointDrawn: ({ point, strokeId, color, width }) => {
-      drawRemotePoint(point, strokeId, color, width);
-    },
+    onCanvasUpdated: (data) => { console.log('Canvas updated', data); },
+    onStrokeDrawn: (data) => drawRemoteStroke(data.stroke),
+    onPointDrawn: (data) => drawRemotePoint(data.point, data.strokeId, data.color, data.width),
     onCanvasCleared: () => {
       clearCanvasRemote();
+      setStickyNotes([]);
+      setTextItems([]);
+      setCroquisItems([]);
     },
-    onStrokeUndone: () => {
-      undoRemote();
-    },
+    onStrokeUndone: () => undoRemote(),
 
     // Object Events
-    onStickyAdded: ({ note }) => {
-      setStickyNotes(prev => [...prev, note]);
+    onStickyAdded: (data) => {
+      setStickyNotes(prev => {
+        if (prev.some(note => note.id === data.note.id)) return prev;
+        return [...prev, data.note];
+      });
     },
-    onStickyUpdated: ({ id, updates }) => {
-      setStickyNotes(prev => prev.map(n => n.id === id ? { ...n, ...updates } : n));
+    onStickyUpdated: (data) => {
+      setStickyNotes(prev => prev.map(n => n.id === data.id ? { ...n, ...data.updates } : n));
     },
-    onStickyDeleted: ({ id }) => {
-      setStickyNotes(prev => prev.filter(n => n.id !== id));
-    },
-
-    onTextAdded: ({ item }) => {
-      setTextItems(prev => [...prev, item]);
-    },
-    onTextUpdated: ({ id, updates }) => {
-      setTextItems(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
-    },
-    onTextDeleted: ({ id }) => {
-      setTextItems(prev => prev.filter(t => t.id !== id));
+    onStickyDeleted: (data) => {
+      setStickyNotes(prev => prev.filter(n => n.id !== data.id));
     },
 
-    onCroquisAdded: ({ item }) => {
-      setCroquisItems(prev => [...prev, item]);
+    onTextAdded: (data) => {
+      setTextItems(prev => {
+        if (prev.some(item => item.id === data.item.id)) return prev;
+        return [...prev, data.item];
+      });
     },
-    onCroquisUpdated: ({ id, updates }) => {
-      setCroquisItems(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+    onTextUpdated: (data) => {
+      setTextItems(prev => prev.map(t => t.id === data.id ? { ...t, ...data.updates } : t));
+    },
+    onTextDeleted: (data) => {
+      setTextItems(prev => prev.filter(t => t.id !== data.id));
+    },
+
+    onCroquisAdded: (data) => {
+      setCroquisItems(prev => {
+        if (prev.some(item => item.id === data.item.id)) return prev;
+        return [...prev, data.item];
+      });
+    },
+    onCroquisUpdated: (data) => {
+      setCroquisItems(prev => prev.map(c => c.id === data.id ? { ...c, ...data.updates } : c));
+    },
+
+    onStrokeUpdated: (data) => {
+      updateStroke(data.id, data.updates);
     },
 
     // Chat
     onChatHistory: (history) => {
-      setMessages(history);
+      setMessages(history.map((msg: any) => ({
+        id: msg._id,
+        userId: msg.userId || msg.guestId,
+        guestId: msg.guestId,
+        userName: msg.userName,
+        content: msg.content,
+        timestamp: new Date(msg.timestamp)
+      })));
     },
-    onReceiveMessage: (msg) => {
-      setMessages(prev => [...prev, msg]);
+    onReceiveMessage: (msg: any) => {
+      setMessages(prev => {
+        if (prev.some(m => m.id === msg._id)) return prev;
+        return [...prev, {
+          id: msg._id,
+          userId: msg.userId || msg.guestId,
+          guestId: msg.guestId,
+          userName: msg.userName,
+          content: msg.content,
+          timestamp: new Date(msg.timestamp)
+        }];
+      });
       if (!isChatOpen && !isAiChatOpen) {
         // Optional: Show notification dot
       }
     }
   });
 
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isAiChatOpen, setIsAiChatOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false); // Controls chat panel visibility
+  const [isAiChatOpen, setIsAiChatOpen] = useState(false); // Controls AI assistant visibility
   const [messages, setMessages] = useState<ChatMessage[]>(MOCK_MESSAGES);
+  const [isParticipantsListOpen, setIsParticipantsListOpen] = useState(false); // Participants sidebar
+  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false); // Analytics sidebar
   const [sessionName, setSessionName] = useState("Loading...");
   const [isLocked] = useState(false);
   const [isLoadingMeeting, setIsLoadingMeeting] = useState(true);
   const [participants, setParticipants] = useState<Participant[]>([]);
-  const [roomId, setRoomId] = useState<string>('');
+  const [roomId, setRoomId] = useState<string>(roomIdParam || (meetingId ? `room-${meetingId}` : ''));
+  const roomIdRef = useRef(roomId);
+
+  useEffect(() => {
+    roomIdRef.current = roomId;
+  }, [roomId]);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [isParticipantsListOpen, setIsParticipantsListOpen] = useState(false);
 
   // Pan/Zoom State
   const [isPanning, setIsPanning] = useState(false);
@@ -379,6 +416,7 @@ const Canvas = () => {
         setTool('select');
         sendAddSticky({
           meetingId: meetingId || undefined,
+          roomId: roomId || undefined,
           note: newNote
         });
       }
@@ -401,6 +439,7 @@ const Canvas = () => {
         setTool('select');
         sendAddText({
           meetingId: meetingId || undefined,
+          roomId: roomId || undefined,
           item: newText
         });
       }
@@ -473,6 +512,7 @@ const Canvas = () => {
     setStickyNotes(prev => prev.map(n => n.id === id ? { ...n, text } : n));
     sendUpdateSticky({
       meetingId: meetingId || undefined,
+      roomId: roomIdRef.current || undefined,
       id,
       updates: { text }
     });
@@ -482,6 +522,7 @@ const Canvas = () => {
     setStickyNotes(prev => prev.filter(n => n.id !== id));
     sendDeleteSticky({
       meetingId: meetingId || undefined,
+      roomId: roomIdRef.current || undefined,
       id
     });
   };
@@ -491,6 +532,7 @@ const Canvas = () => {
     setTextItems(prev => prev.map(t => t.id === id ? { ...t, text } : t));
     sendUpdateText({
       meetingId: meetingId || undefined,
+      roomId: roomIdRef.current || undefined,
       id,
       updates: { text }
     });
@@ -500,6 +542,7 @@ const Canvas = () => {
     setTextItems(prev => prev.filter(t => t.id !== id));
     sendDeleteText({
       meetingId: meetingId || undefined,
+      roomId: roomIdRef.current || undefined,
       id
     });
   };
@@ -539,6 +582,7 @@ const Canvas = () => {
     // Broadcast
     sendAddCroquis({
       meetingId: meetingId || undefined,
+      roomId: roomIdRef.current || undefined,
       item: newItem
     });
   };
@@ -549,6 +593,7 @@ const Canvas = () => {
     // Broadcast
     sendUpdateCroquis({
       meetingId: meetingId || undefined,
+      roomId: roomIdRef.current || undefined,
       id,
       updates
     });
@@ -672,116 +717,7 @@ const Canvas = () => {
 
 
   // --- Socket Event Handlers ---
-  /**
-   * Initialize the Socket.io connection and define event listeners.
-   * This handles all real-time updates from the server, such as:
-   * - Users joining/leaving.
-   * - Drawing updates (strokes, points).
-   * - Object updates (sticky notes, text, croquis).
-   * - Chat messages.
-   */
-  useSocket({
-    onRoomJoined: (data) => {
-      console.log('🎉 Room joined event:', data);
-      console.log('📊 Participants count:', data.participants?.length || 0);
-      console.log('📋 Participants:', data.participants);
-      setParticipants(data.participants);
-    },
-    onUserJoined: (data) => {
-      console.log('👋 User joined event:', data);
-      console.log('📊 Participants count:', data.participants?.length || 0);
-      console.log('📋 Participants:', data.participants);
-      setParticipants(data.participants);
-    },
-    onUserLeft: (data) => {
-      console.log('👋 User left event:', data);
-      console.log('📊 Participants count:', data.participants?.length || 0);
-      console.log('📋 Participants:', data.participants);
-      setParticipants(data.participants);
-    },
-    onCanvasUpdated: (data) => { console.log('Canvas updated', data); },
-    onStrokeDrawn: (data) => drawRemoteStroke(data.stroke),
-    onPointDrawn: (data) => drawRemotePoint(data.point, data.strokeId, data.color, data.width),
-    onCanvasCleared: () => {
-      clearCanvasRemote();
-      setStickyNotes([]);
-      setTextItems([]);
-      setCroquisItems([]);
-    },
-    onStrokeUndone: () => undoRemote(),
-    onChatHistory: (history) => {
-      setMessages(history.map((msg: any) => ({
-        id: msg._id,
-        userId: msg.userId || msg.guestId,
-        guestId: msg.guestId,
-        userName: msg.userName,
-        content: msg.content,
-        timestamp: new Date(msg.timestamp)
-      })));
-    },
-    onReceiveMessage: (msg: any) => {
-      setMessages(prev => {
-        // Dedup based on ID if necessary, mostly unlikely with randomUUID but DB has _id
-        if (prev.some(m => m.id === msg._id)) return prev;
-        return [...prev, {
-          id: msg._id,
-          userId: msg.userId || msg.guestId,
-          guestId: msg.guestId,
-          userName: msg.userName,
-          content: msg.content,
-          timestamp: new Date(msg.timestamp)
-        }];
-      });
-    },
-    onCroquisAdded: (data) => {
-      setCroquisItems(prev => {
-        if (prev.some(item => item.id === data.item.id)) return prev;
-        return [...prev, data.item];
-      });
-    },
-    onCroquisUpdated: (data) => {
-      setCroquisItems(prev => prev.map(c => c.id === data.id ? { ...c, ...data.updates } : c));
-    },
-    onStickyAdded: (data) => {
-      setStickyNotes(prev => {
-        if (prev.some(note => note.id === data.note.id)) return prev;
-        return [...prev, data.note];
-      });
-    },
-    onStickyUpdated: (data) => {
-      setStickyNotes(prev => prev.map(n => n.id === data.id ? { ...n, ...data.updates } : n));
-    },
-    onStickyDeleted: (data) => {
-      setStickyNotes(prev => prev.filter(n => n.id !== data.id));
-    },
-    onTextAdded: (data) => {
-      setTextItems(prev => {
-        if (prev.some(item => item.id === data.item.id)) return prev;
-        return [...prev, data.item];
-      });
-    },
-    onTextUpdated: (data) => {
-      setTextItems(prev => prev.map(t => t.id === data.id ? { ...t, ...data.updates } : t));
-    },
-    onTextDeleted: (data) => {
-      setTextItems(prev => prev.filter(t => t.id !== data.id));
-    },
-    onStrokeUpdated: (data) => {
-      updateStroke(data.id, data.updates);
-    },
-    onCanvasState: (data) => {
-      setInitialStrokes(data.strokes);
-      if (data.croquis) {
-        setCroquisItems(data.croquis);
-      }
-      if (data.stickyNotes) {
-        setStickyNotes(data.stickyNotes);
-      }
-      if (data.textItems) {
-        setTextItems(data.textItems);
-      }
-    },
-  });
+  // Event listeners are now consolidated in the useSocket call above.
 
   // Fetch meeting data
   useEffect(() => {
@@ -814,16 +750,35 @@ const Canvas = () => {
     if (!meetingId) return;
     const roomIdToJoin = roomIdParam || `room-${meetingId}`;
     setRoomId(roomIdToJoin);
-    joinRoom({
-      roomId: roomIdToJoin,
-      meetingId,
-      userId: user?._id,
-      guestId: guestUser?.guestId,
-      name: user?.name || guestUser?.guestName || 'Anonymous',
-      role: user ? 'owner' : 'guest',
-    });
-    if (meetingId) requestCanvasState({ meetingId });
-    return () => leaveRoom();
+
+    const joinSession = () => {
+      console.log('🔄 Joining session room:', roomIdToJoin);
+      joinRoom({
+        roomId: roomIdToJoin,
+        meetingId,
+        userId: user?._id,
+        guestId: guestUser?.guestId,
+        name: user?.name || guestUser?.guestName || 'Anonymous',
+        role: user ? 'owner' : 'guest',
+      });
+      if (meetingId) requestCanvasState({ meetingId });
+    };
+
+    joinSession();
+
+    // Re-join on reconnection
+    const socket = getSocket();
+    const handleReconnect = () => {
+      console.log('🔌 Socket reconnected, re-joining room...');
+      joinSession();
+    };
+
+    socket.on('connect', handleReconnect); // 'connect' fires on initial connection OR reconnection
+
+    return () => {
+      socket.off('connect', handleReconnect);
+      leaveRoom();
+    };
   }, [meetingId, roomIdParam, user, guestUser]);
 
   const handleEditAttempt = () => {
@@ -883,6 +838,7 @@ const Canvas = () => {
   const handleSendMessage = (content: string) => {
     sendMessage({
       meetingId: meetingId || undefined,
+      roomId: roomIdRef.current || undefined,
       userId: user?._id,
       guestId: guestUser?.guestId,
       name: user?.name || guestUser?.guestName || 'Anonymous',
@@ -898,10 +854,10 @@ const Canvas = () => {
 
     if (selectedObject.type === 'sticky') {
       setStickyNotes(prev => prev.map(n => n.id === selectedObject.id ? { ...n, ...updates } : n));
-      sendUpdateSticky({ meetingId: meetingId || undefined, id: selectedObject.id, updates });
+      sendUpdateSticky({ meetingId: meetingId || undefined, roomId: roomIdRef.current || undefined, id: selectedObject.id, updates });
     } else if (selectedObject.type === 'text') {
       setTextItems(prev => prev.map(t => t.id === selectedObject.id ? { ...t, ...updates } : t));
-      sendUpdateText({ meetingId: meetingId || undefined, id: selectedObject.id, updates });
+      sendUpdateText({ meetingId: meetingId || undefined, roomId: roomIdRef.current || undefined, id: selectedObject.id, updates });
     } else if (selectedObject.type === 'croquis') {
       updateCroquis(selectedObject.id, updates);
     } else if (selectedObject.type === 'stroke') {
@@ -927,6 +883,7 @@ const Canvas = () => {
 
         sendUpdateStroke({
           meetingId: meetingId || undefined,
+          roomId: roomIdRef.current || undefined,
           id: selectedObject.id,
           updates: {
             ...updates,
@@ -947,6 +904,7 @@ const Canvas = () => {
       setCroquisItems(prev => prev.filter(c => c.id !== selectedObject.id));
       sendDeleteCroquis({
         meetingId: meetingId || undefined,
+        roomId: roomIdRef.current || undefined,
         id: selectedObject.id
       });
     }
@@ -1221,6 +1179,7 @@ const Canvas = () => {
             </div>
             {/* End Zoom Controls */}
             <Button variant="ghost" size="icon-sm" className="h-8 w-8 text-[rgb(245,244,235)] hover:text-white hover:bg-white/10" onClick={handleOpenImage} title="Add Image"><ImagePlus className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon-sm" className="h-8 w-8 text-[rgb(245,244,235)] hover:text-white hover:bg-white/10" onClick={() => setIsAnalyticsOpen(true)} title="Analytics"><Activity className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon-sm" className="h-8 w-8 text-[rgb(245,244,235)] hover:text-white hover:bg-white/10" onClick={handleShare} title="Share"><Share2 className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon-sm" className="h-8 w-8 text-[rgb(245,244,235)] hover:text-white hover:bg-white/10" onClick={handleExport} title="Export"><Download className="w-4 h-4" /></Button>
             <DropdownMenu>
@@ -1483,6 +1442,7 @@ const Canvas = () => {
         onAddCroquis={handleAddCroquis}
       />
       <ParticipantsList participants={participants} currentUserId={user?._id} currentGuestId={guestUser?.guestId} isOpen={isParticipantsListOpen} onClose={() => setIsParticipantsListOpen(false)} />
+      <AnalyticsPanel isOpen={isAnalyticsOpen} onClose={() => setIsAnalyticsOpen(false)} roomId={roomIdRef.current || ""} isOwner={!!user && participants.find(p => p.userId === user._id)?.isOwner === true} />
       <ChatPanel messages={messages} users={participants.map((p, i) => ({ id: p.userId || p.guestId || p.socketId, name: p.name, role: p.isOwner ? 'owner' : (p.userId ? 'editor' : 'viewer'), color: PRESENCE_COLORS[i % PRESENCE_COLORS.length], isOnline: true }))} currentUserId={user?._id || guestUser?.guestId || ''} onSendMessage={handleSendMessage} isOpen={isChatOpen} onToggle={() => { setIsChatOpen(!isChatOpen); if (!isChatOpen) setIsAiChatOpen(false); }} />
       <AiChatPanel isOpen={isAiChatOpen} onToggle={() => { setIsAiChatOpen(!isAiChatOpen); if (!isAiChatOpen) setIsChatOpen(false); }} stickyNotes={stickyNotes} textItems={textItems} />
 

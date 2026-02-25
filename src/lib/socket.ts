@@ -106,93 +106,111 @@ export const sendCursorMove = (position: { x: number; y: number }): void => {
 
 export const sendStroke = (data: {
     meetingId?: string;
+    roomId?: string;
     stroke: any;
 }): void => {
     const socket = getSocket();
+    if (!data.roomId) console.warn('⚠️ sendStroke emitted without roomId!', data);
     socket.emit('draw-stroke', data);
 };
 
 export const sendPoint = (data: {
     meetingId?: string;
+    roomId?: string;
     point: { x: number; y: number };
     strokeId: string;
     color: string;
     width: number;
 }): void => {
     const socket = getSocket();
+    if (!data.roomId) console.warn('⚠️ sendPoint emitted without roomId!', data);
     socket.emit('draw-point', data);
 };
 
-export const sendClearCanvas = (data: { meetingId?: string }): void => {
+export const sendClearCanvas = (data: { meetingId?: string; roomId?: string; }): void => {
     const socket = getSocket();
+    if (!data.roomId) console.warn('⚠️ sendClearCanvas emitted without roomId!', data);
     socket.emit('clear-canvas', data);
 };
 
-export const sendUndo = (data: { meetingId?: string }): void => {
+export const sendUndo = (data: { meetingId?: string; roomId?: string; }): void => {
     const socket = getSocket();
+    if (!data.roomId) console.warn('⚠️ sendUndo emitted without roomId!', data);
     socket.emit('undo-stroke', data);
 };
 
-export const sendAddCroquis = (data: { meetingId?: string; item: any; }): void => {
+export const sendAddCroquis = (data: { meetingId?: string; roomId?: string; item: any; }): void => {
     const socket = getSocket();
+    if (!data.roomId) console.warn('⚠️ sendAddCroquis emitted without roomId!', data);
     socket.emit('add-croquis', data);
 };
 
-export const sendUpdateCroquis = (data: { meetingId?: string; id: string; updates: any; }): void => {
+export const sendUpdateCroquis = (data: { meetingId?: string; roomId?: string; id: string; updates: any; }): void => {
     const socket = getSocket();
+    if (!data.roomId) console.warn('⚠️ sendUpdateCroquis emitted without roomId!', data);
     socket.emit('update-croquis', data);
 };
 
-export const sendDeleteCroquis = (data: { meetingId?: string; id: string; }): void => {
+export const sendDeleteCroquis = (data: { meetingId?: string; roomId?: string; id: string; }): void => {
     const socket = getSocket();
+    if (!data.roomId) console.warn('⚠️ sendDeleteCroquis emitted without roomId!', data);
     socket.emit('delete-croquis', data);
 };
 
 export const sendMessage = (data: {
     meetingId?: string;
+    roomId?: string;
     userId?: string;
     guestId?: string;
     name: string;
     content: string;
 }): void => {
     console.log('📤 Sending message:', data);
+    if (!data.roomId) console.warn('⚠️ sendMessage emitted without roomId!', data);
     const socket = getSocket();
     socket.emit('send-message', data);
 };
 
 
-export const sendAddSticky = (data: { meetingId?: string; note: any; }): void => {
+export const sendAddSticky = (data: { meetingId?: string; roomId?: string; note: any; }): void => {
     const socket = getSocket();
+    if (!data.roomId) console.warn('⚠️ sendAddSticky emitted without roomId!', data);
     socket.emit('add-sticky', data);
 };
 
-export const sendUpdateSticky = (data: { meetingId?: string; id: string; updates: any; }): void => {
+export const sendUpdateSticky = (data: { meetingId?: string; roomId?: string; id: string; updates: any; }): void => {
     const socket = getSocket();
+    if (!data.roomId) console.warn('⚠️ sendUpdateSticky emitted without roomId!', data);
     socket.emit('update-sticky', data);
 };
 
-export const sendDeleteSticky = (data: { meetingId?: string; id: string; }): void => {
+export const sendDeleteSticky = (data: { meetingId?: string; roomId?: string; id: string; }): void => {
     const socket = getSocket();
+    if (!data.roomId) console.warn('⚠️ sendDeleteSticky emitted without roomId!', data);
     socket.emit('delete-sticky', data);
 };
 
-export const sendAddText = (data: { meetingId?: string; item: any; }): void => {
+export const sendAddText = (data: { meetingId?: string; roomId?: string; item: any; }): void => {
     const socket = getSocket();
+    if (!data.roomId) console.warn('⚠️ sendAddText emitted without roomId!', data);
     socket.emit('add-text', data);
 };
 
-export const sendUpdateText = (data: { meetingId?: string; id: string; updates: any; }): void => {
+export const sendUpdateText = (data: { meetingId?: string; roomId?: string; id: string; updates: any; }): void => {
     const socket = getSocket();
+    if (!data.roomId) console.warn('⚠️ sendUpdateText emitted without roomId!', data);
     socket.emit('update-text', data);
 };
 
-export const sendDeleteText = (data: { meetingId?: string; id: string; }): void => {
+export const sendDeleteText = (data: { meetingId?: string; roomId?: string; id: string; }): void => {
     const socket = getSocket();
+    if (!data.roomId) console.warn('⚠️ sendDeleteText emitted without roomId!', data);
     socket.emit('delete-text', data);
 };
 
-export const sendUpdateStroke = (data: { meetingId?: string; id: string; updates: any; }): void => {
+export const sendUpdateStroke = (data: { meetingId?: string; roomId?: string; id: string; updates: any; }): void => {
     const socket = getSocket();
+    if (!data.roomId) console.warn('⚠️ sendUpdateStroke emitted without roomId!', data);
     socket.emit('update-stroke', data);
 };
 
