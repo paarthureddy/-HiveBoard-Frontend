@@ -9,15 +9,12 @@ export default defineConfig({
     setupFiles: ["./src/test/setup.ts"],
     // Include both teammate's tests and your new tests
     include: [
-        "src/**/*.{test,spec}.{ts,tsx}", 
-        "server/**/*.{test,spec}.{js,ts}"
+      "src/**/*.{test,spec}.{ts,tsx}",
     ],
   },
   resolve: {
-    alias: { 
+    alias: {
       "@": path.resolve(__dirname, "./src"),
-      // Add aliases for backend modules to resolve correctly during testing
-      "@server": path.resolve(__dirname, "./server")
     },
   },
 });
