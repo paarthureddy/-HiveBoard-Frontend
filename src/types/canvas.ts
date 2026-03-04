@@ -29,12 +29,14 @@ export interface User {
 
 export interface ChatMessage {
   id: string;
+  tempId?: string; // Optimistic message identifier, replaced once DB-confirmed
   userId: string;
   guestId?: string;
   userName: string;
   content: string;
   imageUrl?: string;
   timestamp: Date;
+  isPending?: boolean; // True while awaiting message-confirmed from server
 }
 
 export interface StickyNote {

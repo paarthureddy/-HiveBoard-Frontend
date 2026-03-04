@@ -201,6 +201,11 @@ export const requestCanvasState = (data: { meetingId: string }): void => {
     socket.emit('request-canvas-state', data);
 };
 
+export const sendCanvasBackground = (data: { meetingId?: string; color: string }): void => {
+    const socket = getSocket();
+    socket.emit('set-canvas-background', data);
+};
+
 export default {
     getSocket,
     connectSocket,
@@ -218,6 +223,7 @@ export default {
     sendUpdateCroquis,
     sendDeleteCroquis,
     sendMessage,
+    sendCanvasBackground,
     requestCanvasState,
     sendAddSticky,
     sendUpdateSticky,

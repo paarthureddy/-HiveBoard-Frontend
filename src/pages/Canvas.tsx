@@ -3,12 +3,13 @@ import { motion } from "framer-motion";
 import { isPointInPolygon } from "@/lib/geometry";
 import html2canvas from 'html2canvas';
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { useCanvas } from "@/hooks/useCanvas";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGuest } from "@/contexts/GuestContext";
 import { useSocket } from "@/hooks/useSocket";
-import { joinRoom, leaveRoom, sendStroke, sendPoint, sendClearCanvas, sendUndo, requestCanvasState, sendMessage, sendAddCroquis, sendUpdateCroquis, sendDeleteCroquis, sendAddSticky, sendUpdateSticky, sendDeleteSticky, sendAddText, sendUpdateText, sendDeleteText, sendUpdateStroke } from "@/lib/socket";
+import { joinRoom, leaveRoom, sendStroke, sendPoint, sendClearCanvas, sendUndo, requestCanvasState, sendMessage, sendCanvasBackground, sendAddCroquis, sendUpdateCroquis, sendDeleteCroquis, sendAddSticky, sendUpdateSticky, sendDeleteSticky, sendAddText, sendUpdateText, sendDeleteText, sendUpdateStroke } from "@/lib/socket";
 import { meetingsAPI } from "@/lib/api";
 import Toolbar from "@/components/canvas/Toolbar";
 import ChatPanel from "@/components/canvas/ChatPanel";
@@ -47,6 +48,7 @@ import {
   CircleHelp,
   Palette,
   ImagePlus,
+  ShieldAlert,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -79,12 +81,26 @@ const MOCK_MESSAGES: ChatMessage[] = [];
 const Canvas = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   // --- Authentication State ---
   // Determine if the current user is a registered member or a guest
   const { user, isAuthenticated } = useAuth();
   const { guestUser, isGuest, setGuestUser } = useGuest();
-  const isReadOnly = !isAuthenticated; // Flag for restricted features
+
+  // --- Session Role & Permissions ---
+  // sessionRole is derived after the meeting loads: owner > editor > viewer/guest
+  // - 'owner'  : authenticated user who created the meeting
+  // - 'editor' : authenticated user who joined via invite (not the owner)
+  // - 'viewer' : unauthenticated guest (joined via invite link)
+  const [sessionRole, setSessionRole] = useState<'owner' | 'editor' | 'viewer' | 'guest'>('viewer');
+
+  // canExport: only owners and editors can download/export content
+  const canExport = sessionRole === 'owner' || sessionRole === 'editor';
+  // canEdit: owners and editors can draw/modify; viewers/guests are read-only
+  const canEdit = sessionRole === 'owner' || sessionRole === 'editor';
+  // isReadOnly: legacy flag kept for backward compat with drawing handlers
+  const isReadOnly = !canEdit;
 
   // --- URL Parameters ---
   // specific meeting and room IDs are extracted to connect to the correct session
@@ -190,87 +206,9 @@ const Canvas = () => {
     }
   });
 
-  // --- Socket.io Integration ---
-  // Connects socket events to local state updates
-  useSocket({
-    // Initial State Load
-    onCanvasState: (data) => {
-      console.log('Load Canvas State', data); // Debug
-      if (data.strokes) setInitialStrokes(data.strokes);
-      if (data.stickyNotes) setStickyNotes(data.stickyNotes);
-      if (data.textItems) setTextItems(data.textItems);
-      if (data.croquis) setCroquisItems(data.croquis);
-    },
-
-    // Auto-update participants list
-    onParticipantsList: (users) => {
-      setParticipants(users);
-    },
-    onRoomJoined: (data) => {
-      console.log('Joined Room', data);
-      if (data.participants) setParticipants(data.participants);
-    },
-    onUserJoined: (data) => {
-      console.log('User Joined', data);
-      if (data.participants) setParticipants(data.participants);
-    },
-    onUserLeft: (data) => {
-      if (data.participants) setParticipants(data.participants);
-    },
-
-    // Real-time Drawing Events
-    onStrokeDrawn: ({ stroke }) => {
-      drawRemoteStroke(stroke);
-    },
-    onPointDrawn: ({ point, strokeId, color, width }) => {
-      drawRemotePoint(point, strokeId, color, width);
-    },
-    onCanvasCleared: () => {
-      clearCanvasRemote();
-    },
-    onStrokeUndone: () => {
-      undoRemote();
-    },
-
-    // Object Events
-    onStickyAdded: ({ note }) => {
-      setStickyNotes(prev => [...prev, note]);
-    },
-    onStickyUpdated: ({ id, updates }) => {
-      setStickyNotes(prev => prev.map(n => n.id === id ? { ...n, ...updates } : n));
-    },
-    onStickyDeleted: ({ id }) => {
-      setStickyNotes(prev => prev.filter(n => n.id !== id));
-    },
-
-    onTextAdded: ({ item }) => {
-      setTextItems(prev => [...prev, item]);
-    },
-    onTextUpdated: ({ id, updates }) => {
-      setTextItems(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
-    },
-    onTextDeleted: ({ id }) => {
-      setTextItems(prev => prev.filter(t => t.id !== id));
-    },
-
-    onCroquisAdded: ({ item }) => {
-      setCroquisItems(prev => [...prev, item]);
-    },
-    onCroquisUpdated: ({ id, updates }) => {
-      setCroquisItems(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
-    },
-
-    // Chat
-    onChatHistory: (history) => {
-      setMessages(history);
-    },
-    onReceiveMessage: (msg) => {
-      setMessages(prev => [...prev, msg]);
-      if (!isChatOpen && !isAiChatOpen) {
-        // Optional: Show notification dot
-      }
-    }
-  });
+  // NOTE: All socket event handlers are defined in the single useSocket call below,
+  // after all useState declarations are in scope. This prevents stale-closure bugs
+  // where setters like setParticipants would be undefined at the time of registration.
 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isAiChatOpen, setIsAiChatOpen] = useState(false);
@@ -681,23 +619,27 @@ const Canvas = () => {
    * - Chat messages.
    */
   useSocket({
+    // Participant tracking — all three events that the server can emit
+    onParticipantsList: (users) => {
+      // Only keep users with an active socketId (currently connected)
+      const online = users.filter((u: any) => !!u.socketId);
+      console.log('📋 Participants list:', online.length, 'online');
+      setParticipants(online);
+    },
     onRoomJoined: (data) => {
-      console.log('🎉 Room joined event:', data);
-      console.log('📊 Participants count:', data.participants?.length || 0);
-      console.log('📋 Participants:', data.participants);
-      setParticipants(data.participants);
+      const online = (data.participants ?? []).filter((u: any) => !!u.socketId);
+      console.log('🎉 Room joined:', online.length, 'online participants');
+      setParticipants(online);
     },
     onUserJoined: (data) => {
-      console.log('👋 User joined event:', data);
-      console.log('📊 Participants count:', data.participants?.length || 0);
-      console.log('📋 Participants:', data.participants);
-      setParticipants(data.participants);
+      const online = (data.participants ?? []).filter((u: any) => !!u.socketId);
+      console.log('👋 User joined, now online:', online.length);
+      setParticipants(online);
     },
     onUserLeft: (data) => {
-      console.log('👋 User left event:', data);
-      console.log('📊 Participants count:', data.participants?.length || 0);
-      console.log('📋 Participants:', data.participants);
-      setParticipants(data.participants);
+      const online = (data.participants ?? []).filter((u: any) => !!u.socketId);
+      console.log('👋 User left, now online:', online.length);
+      setParticipants(online);
     },
     onCanvasUpdated: (data) => { console.log('Canvas updated', data); },
     onStrokeDrawn: (data) => drawRemoteStroke(data.stroke),
@@ -719,9 +661,10 @@ const Canvas = () => {
         timestamp: new Date(msg.timestamp)
       })));
     },
+    // Fires only for OTHER users' messages (backend emits to everyone except sender)
     onReceiveMessage: (msg: any) => {
       setMessages(prev => {
-        // Dedup based on ID if necessary, mostly unlikely with randomUUID but DB has _id
+        // Guard against duplicate DB IDs (shouldn't happen but be safe)
         if (prev.some(m => m.id === msg._id)) return prev;
         return [...prev, {
           id: msg._id,
@@ -730,6 +673,37 @@ const Canvas = () => {
           userName: msg.userName,
           content: msg.content,
           timestamp: new Date(msg.timestamp)
+        }];
+      });
+    },
+    // Fires only for the SENDER after their message is saved to DB
+    onMessageConfirmed: (msg: any) => {
+      setMessages(prev => {
+        // Replace the optimistic (tempId) entry with the confirmed DB message.
+        // Match by content + isPending flag since we don't have the DB id yet.
+        const optimisticIndex = prev.findIndex(m => m.isPending && m.content === msg.content);
+        if (optimisticIndex !== -1) {
+          const updated = [...prev];
+          updated[optimisticIndex] = {
+            id: msg._id,
+            userId: msg.userId || msg.guestId,
+            guestId: msg.guestId,
+            userName: msg.userName,
+            content: msg.content,
+            timestamp: new Date(msg.timestamp),
+            isPending: false,
+          };
+          return updated;
+        }
+        // Fallback: if optimistic entry not found, just append (shouldn't happen)
+        if (prev.some(m => m.id === msg._id)) return prev;
+        return [...prev, {
+          id: msg._id,
+          userId: msg.userId || msg.guestId,
+          guestId: msg.guestId,
+          userName: msg.userName,
+          content: msg.content,
+          timestamp: new Date(msg.timestamp),
         }];
       });
     },
@@ -771,23 +745,25 @@ const Canvas = () => {
     },
     onCanvasState: (data) => {
       setInitialStrokes(data.strokes);
-      if (data.croquis) {
-        setCroquisItems(data.croquis);
-      }
-      if (data.stickyNotes) {
-        setStickyNotes(data.stickyNotes);
-      }
-      if (data.textItems) {
-        setTextItems(data.textItems);
-      }
+      if (data.croquis) setCroquisItems(data.croquis);
+      if (data.stickyNotes) setStickyNotes(data.stickyNotes);
+      if (data.textItems) setTextItems(data.textItems);
+      // Restore background color saved by the server
+      if (data.backgroundColor) setCanvasBg(data.backgroundColor);
+    },
+    // Fires when another user changes the canvas background colour
+    onCanvasBackgroundChanged: ({ color }) => {
+      setCanvasBg(color);
     },
   });
 
-  // Fetch meeting data
+  // Fetch meeting data & resolve session role
   useEffect(() => {
     const fetchMeeting = async () => {
       if (!meetingId) {
         setSessionName("Untitled Session");
+        // No meetingId → treat authenticated users as editors of a scratch session
+        setSessionRole(isAuthenticated ? 'editor' : 'viewer');
         setIsLoadingMeeting(false);
         return;
       }
@@ -799,15 +775,32 @@ const Canvas = () => {
           meeting = await meetingsAPI.getPublicById(meetingId);
         }
         setSessionName(meeting.title);
+
+        // --- Resolve session role from ownership ---
+        // The backend returns createdBy as the owner's user ID string.
+        // If the authenticated user matches the owner → 'owner'.
+        // If authenticated but not the owner → 'editor' (invited collaborator).
+        // If not authenticated → 'viewer' (guest via invite link).
+        if (isAuthenticated && user) {
+          const ownerId = typeof meeting.createdBy === 'string'
+            ? meeting.createdBy
+            : (meeting.createdBy as any)?._id;
+          setSessionRole(user._id === ownerId ? 'owner' : 'editor');
+        } else if (isGuest) {
+          setSessionRole('guest');
+        } else {
+          setSessionRole('viewer');
+        }
       } catch (error) {
         console.error('Error fetching meeting:', error);
         setSessionName("Untitled Session");
+        setSessionRole(isAuthenticated ? 'editor' : 'viewer');
       } finally {
         setIsLoadingMeeting(false);
       }
     };
     fetchMeeting();
-  }, [meetingId]);
+  }, [meetingId, isAuthenticated, isGuest, user]);
 
   // Join Room
   useEffect(() => {
@@ -880,12 +873,41 @@ const Canvas = () => {
     undo();
   };
 
+  /**
+   * Sets the canvas background colour:
+   * - Applies it locally (optimistic).
+   * - Emits 'set-canvas-background' so the server persists it and
+   *   broadcasts 'canvas-background-changed' to every other participant.
+   */
+  const handleSetCanvasBg = (color: string) => {
+    setCanvasBg(color);
+    sendCanvasBackground({ meetingId: meetingId || undefined, color });
+  };
+
   const handleSendMessage = (content: string) => {
+    const tempId = `temp-${Date.now()}`;
+    const currentUserName = user?.name || guestUser?.guestName || 'Anonymous';
+    const currentUserId = user?._id || guestUser?.guestId || '';
+
+    // Optimistically add the message to the UI immediately
+    const optimisticMessage = {
+      id: tempId,
+      tempId,
+      userId: currentUserId,
+      guestId: guestUser?.guestId,
+      userName: currentUserName,
+      content,
+      timestamp: new Date(),
+      isPending: true,
+    };
+    setMessages(prev => [...prev, optimisticMessage]);
+
+    // Emit to server — server will fire 'message-confirmed' back to sender
     sendMessage({
       meetingId: meetingId || undefined,
       userId: user?._id,
       guestId: guestUser?.guestId,
-      name: user?.name || guestUser?.guestName || 'Anonymous',
+      name: currentUserName,
       content
     });
   };
@@ -1005,8 +1027,20 @@ const Canvas = () => {
   }
 
   const handleExport = async () => {
-    // Clear selection to avoid capturing controls
+    // --- Permission Check ---
+    // Only owners and editors are allowed to export the canvas as an image.
+    if (!canExport) {
+      toast({
+        title: 'Export not allowed',
+        description: sessionRole === 'guest'
+          ? 'Guests cannot export. Please sign in to unlock export.'
+          : 'Viewers cannot export this session.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
+    // Clear selection to avoid capturing controls
     setSelectedObject(null);
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
@@ -1018,18 +1052,17 @@ const Canvas = () => {
     try {
       // Use html2canvas to capture the entire composition
       const canvas = await html2canvas(contentRef.current, {
-        scale: 2, // High resolution
-        useCORS: true, // Allow loading cross-origin images (if any)
-        backgroundColor: '#ffffff', // Force white background for JPG
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
         logging: false,
       });
 
-      // Save thumbnail if owner
-      if (meetingId && isAuthenticated) {
+      // Save thumbnail — only the session owner updates the stored thumbnail
+      if (meetingId && sessionRole === 'owner') {
         try {
-          // Create smaller thumbnail
           const thumbCanvas = await html2canvas(contentRef.current, {
-            scale: 0.2, // Smaller scale for thumbnail
+            scale: 0.2,
             useCORS: true,
             backgroundColor: '#ffffff',
             logging: false,
@@ -1108,12 +1141,29 @@ const Canvas = () => {
   };
 
   const handleSaveTo = () => {
+    // --- Permission Check ---
+    // Exporting the raw .hive.json file is restricted to owners only.
+    // Editors can export image (PNG/JPG) but full data export is owner-only.
+    if (!canExport) {
+      toast({
+        title: 'Save not allowed',
+        description: sessionRole === 'guest'
+          ? 'Guests cannot save project files. Please sign in.'
+          : 'Only the session owner and editors can save project files.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const data = {
       version: 1,
       timestamp: Date.now(),
       title: sessionName,
+      exportedBy: user?.name || 'Unknown',
+      sessionRole,       // Record who exported and their role
+      meetingId: meetingId || null,
       canvasBg,
-      strokes, // Include strokes from hook
+      strokes,
       stickyNotes,
       textItems,
       croquisItems
@@ -1222,7 +1272,20 @@ const Canvas = () => {
             {/* End Zoom Controls */}
             <Button variant="ghost" size="icon-sm" className="h-8 w-8 text-[rgb(245,244,235)] hover:text-white hover:bg-white/10" onClick={handleOpenImage} title="Add Image"><ImagePlus className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon-sm" className="h-8 w-8 text-[rgb(245,244,235)] hover:text-white hover:bg-white/10" onClick={handleShare} title="Share"><Share2 className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon-sm" className="h-8 w-8 text-[rgb(245,244,235)] hover:text-white hover:bg-white/10" onClick={handleExport} title="Export"><Download className="w-4 h-4" /></Button>
+            {/* Export button — visible to all but disabled for viewers/guests with a tooltip */}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className={`h-8 w-8 hover:bg-white/10 transition-opacity ${canExport
+                ? 'text-[rgb(245,244,235)] hover:text-white'
+                : 'text-[rgb(245,244,235)]/40 cursor-not-allowed'
+                }`}
+              onClick={handleExport}
+              title={canExport ? 'Export canvas as image' : `Export is restricted (you are a ${sessionRole})`}
+              id="btn-export-image"
+            >
+              {canExport ? <Download className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon-sm" className="h-8 w-8 text-[rgb(245,244,235)] hover:text-white hover:bg-white/10"><MoreHorizontal className="w-4 h-4" /></Button>
@@ -1233,14 +1296,26 @@ const Canvas = () => {
                   Open
                   <DropdownMenuShortcut>Ctrl+O</DropdownMenuShortcut>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleSaveTo}>
+                <DropdownMenuItem
+                  onClick={handleSaveTo}
+                  disabled={!canExport}
+                  className={!canExport ? 'opacity-40 cursor-not-allowed' : ''}
+                  id="menu-save-to"
+                >
                   <Download className="w-4 h-4 mr-2" />
                   Save to...
+                  {!canExport && <span className="ml-auto text-[10px] text-muted-foreground uppercase tracking-wide">Owner/Editor only</span>}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExport}>
+                <DropdownMenuItem
+                  onClick={handleExport}
+                  disabled={!canExport}
+                  className={!canExport ? 'opacity-40 cursor-not-allowed' : ''}
+                  id="menu-export-image"
+                >
                   <ImageDown className="w-4 h-4 mr-2" />
                   Export image...
                   <DropdownMenuShortcut>Ctrl+Shift+E</DropdownMenuShortcut>
+                  {!canExport && <span className="ml-1 text-[10px] text-muted-foreground uppercase tracking-wide">Owner/Editor only</span>}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-violet-600 focus:text-violet-700 focus:bg-violet-50">
@@ -1268,15 +1343,33 @@ const Canvas = () => {
                     <Palette className="w-4 h-4 mr-2" />
                     Canvas background color
                   </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent className="p-2 grid grid-cols-4 gap-2">
-                    {['#F8F9FA', '#ffffff', '#fffbeb', '#f0fdf4', '#eff6ff', '#f5f3ff', '#1a1a1a', '#2d2d2d'].map(color => (
-                      <button
-                        key={color}
-                        className={cn("w-6 h-6 rounded-full border border-border shadow-sm hover:scale-110 transition-transform", canvasBg === color && "ring-2 ring-primary")}
-                        style={{ backgroundColor: color }}
-                        onClick={() => setCanvasBg(color)}
-                      />
-                    ))}
+                  <DropdownMenuSubContent className="p-2 min-w-[10rem]">
+                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mb-2 px-0.5">Background Color</p>
+                    <div className="grid grid-cols-5 gap-2">
+                      {[
+                        { color: '#F8F9FA', label: 'Default' },
+                        { color: '#ffffff', label: 'White' },
+                        { color: '#1a1a1a', label: 'Dark' },
+                        { color: '#2d2d2d', label: 'Darker' },
+                        { color: '#fffbeb', label: 'Warm' },
+                        { color: '#FFF3DC', label: 'Light Cream' },
+                        { color: '#FFF0F3', label: 'Blush Pink' },
+                        { color: '#FAEEF1', label: 'Light Burgundy' },
+                        { color: '#F0FAF4', label: 'Pale Emerald' },
+                        { color: '#F0F3FF', label: 'Very Light Navy' },
+                      ].map(({ color, label }) => (
+                        <button
+                          key={color}
+                          title={label}
+                          className={cn(
+                            "w-6 h-6 rounded-full border border-border shadow-sm hover:scale-110 transition-transform",
+                            canvasBg === color && "ring-2 ring-primary ring-offset-1"
+                          )}
+                          style={{ backgroundColor: color }}
+                          onClick={() => handleSetCanvasBg(color)}
+                        />
+                      ))}
+                    </div>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
               </DropdownMenuContent>

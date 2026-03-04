@@ -87,8 +87,9 @@ const ParticipantsList: React.FC<ParticipantsListProps> = ({
                             <div className="flex items-center gap-2">
                                 <Users className="w-5 h-5 text-primary" />
                                 <h2 className="font-semibold text-lg">Participants</h2>
-                                <span className="bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full font-medium">
-                                    {participants.length}
+                                <span className="bg-green-500/15 text-green-600 dark:text-green-400 text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full inline-block" />
+                                    {participants.length} online
                                 </span>
                             </div>
                             <Button variant="ghost" size="icon-sm" onClick={onClose}>
@@ -153,7 +154,7 @@ const ParticipantsList: React.FC<ParticipantsListProps> = ({
                             {participants.length === 0 && (
                                 <div className="flex flex-col items-center justify-center h-40 text-muted-foreground text-sm gap-2">
                                     <Users className="w-8 h-8 opacity-20" />
-                                    <p>No participants yet</p>
+                                    <p>No one else is online</p>
                                 </div>
                             )}
                         </div>
