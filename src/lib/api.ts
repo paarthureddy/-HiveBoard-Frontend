@@ -136,4 +136,16 @@ export const userAPI = {
     },
 };
 
+// Analytics API
+export const analyticsAPI = {
+    getMetrics: async (meetingId: string): Promise<any> => {
+        const response = await api.get(`/analytics/metrics/${meetingId}`);
+        return response.data;
+    },
+    compareSessions: async (sessionIds: string[]): Promise<any> => {
+        const response = await api.post('/analytics/compare', { sessionIds });
+        return response.data;
+    },
+};
+
 export default api;
