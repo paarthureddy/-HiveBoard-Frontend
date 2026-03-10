@@ -230,16 +230,19 @@ const Canvas = () => {
   // --- Keyboard Shortcuts (Copy / Paste / Delete) ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger if typing in an input field/textarea
-      if (document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement) {
-        return;
-      }
       if (isReadOnly) return; // Disallow guest/viewer modifying the board
 
+      const activeEl = document.activeElement;
+      const isInputFocused = activeEl instanceof HTMLInputElement || activeEl instanceof HTMLTextAreaElement;
       const isModifierPressed = e.ctrlKey || e.metaKey;
 
       // Copy
       if (isModifierPressed && e.key.toLowerCase() === 'c') {
+        if (isInputFocused) {
+          const el = activeEl as HTMLInputElement | HTMLTextAreaElement;
+          if (el.selectionStart !== el.selectionEnd) return; // Let native OS copy text
+        }
+
         if (!selectedObject) return;
 
         let itemToCopy = null;
@@ -256,7 +259,14 @@ const Canvas = () => {
 
       // Paste
       if (isModifierPressed && e.key.toLowerCase() === 'v') {
+        if (isInputFocused && !clipboard) return; // Allow native OS text paste if we have no object
+
         if (!clipboard) return;
+
+        // If we have an object to paste, we intercept it even in inputs
+        if (isInputFocused) {
+          activeEl.blur(); // Blur so the user sees the newly pasted object instead
+        }
 
         const newId = crypto.randomUUID();
         const offset = 20; // Visual offset when pasting
@@ -289,6 +299,7 @@ const Canvas = () => {
 
       // Delete
       if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (isInputFocused) return; // Let user backspace out text naturally
         if (!selectedObject) return;
         if (selectedObject.type === 'sticky') {
           setStickyNotes(prev => prev.filter(n => n.id !== selectedObject.id));
@@ -1023,8 +1034,15 @@ const Canvas = () => {
       setStickyNotes(prev => prev.map(n => n.id === selectedObject.id ? { ...n, ...updates } : n));
       sendUpdateSticky({ meetingId: meetingId || undefined, id: selectedObject.id, updates });
     } else if (selectedObject.type === 'text') {
-      setTextItems(prev => prev.map(t => t.id === selectedObject.id ? { ...t, ...updates } : t));
-      sendUpdateText({ meetingId: meetingId || undefined, id: selectedObject.id, updates });
+      const oldItem = textItems.find(t => t.id === selectedObject.id);
+      let nextUpdates: any = { ...updates };
+      // Text specifically should scale font size when the bounding box height is dragged
+      if (oldItem && updates.height && oldItem.height) {
+        const scale = updates.height / oldItem.height;
+        nextUpdates.fontSize = (oldItem.fontSize || 24) * scale;
+      }
+      setTextItems(prev => prev.map(t => t.id === selectedObject.id ? { ...t, ...nextUpdates } : t));
+      sendUpdateText({ meetingId: meetingId || undefined, id: selectedObject.id, updates: nextUpdates });
     } else if (selectedObject.type === 'croquis') {
       updateCroquis(selectedObject.id, updates);
     } else if (selectedObject.type === 'stroke') {
@@ -1033,29 +1051,49 @@ const Canvas = () => {
         // Calculate interactions
         // If x/y changed, shift points
         const currentBounds = getStrokeBounds(stroke);
-        const dx = (updates.x !== undefined) ? updates.x - currentBounds.x : 0;
-        const dy = (updates.y !== undefined) ? updates.y - currentBounds.y : 0;
+        const { width: newWidth, height: newHeight, rotation, ...restUpdates } = updates;
+
+        const targetX = (updates.x !== undefined) ? updates.x : currentBounds.x;
+        const targetY = (updates.y !== undefined) ? updates.y : currentBounds.y;
 
         let newPoints = stroke.points;
-        if (dx !== 0 || dy !== 0) {
-          newPoints = stroke.points.map(p => ({ x: p.x + dx, y: p.y + dy }));
+        const widthChanged = newWidth !== undefined && newWidth !== currentBounds.width;
+        const heightChanged = newHeight !== undefined && newHeight !== currentBounds.height;
+
+        let scaleX = 1;
+        let scaleY = 1;
+
+        const w1 = currentBounds.width || 1;
+        const h1 = currentBounds.height || 1;
+
+        if (widthChanged) scaleX = newWidth / w1;
+        if (heightChanged) scaleY = newHeight / h1;
+
+        if (updates.x !== undefined || updates.y !== undefined || widthChanged || heightChanged) {
+          newPoints = stroke.points.map(p => ({
+            x: (p.x - currentBounds.x) * scaleX + targetX,
+            y: (p.y - currentBounds.y) * scaleY + targetY,
+          }));
         }
 
-        updateStroke(selectedObject.id, {
-          ...updates,
-          points: newPoints,
-          // Ensure center is set for rotation
-          center: stroke.center || { x: currentBounds.x + currentBounds.width / 2, y: currentBounds.y + currentBounds.height / 2 }
-        });
+        const newTargetW = newWidth ?? currentBounds.width;
+        const newTargetH = newHeight ?? currentBounds.height;
 
+        const finalStrokeUpdates: any = {
+          ...restUpdates, // Rest updates safely contain x/y but NOT width/height.
+          points: newPoints,
+          center: { x: targetX + newTargetW / 2, y: targetY + newTargetH / 2 }
+        };
+
+        if (rotation !== undefined) {
+          finalStrokeUpdates.rotation = rotation;
+        }
+
+        updateStroke(selectedObject.id, finalStrokeUpdates);
         sendUpdateStroke({
           meetingId: meetingId || undefined,
           id: selectedObject.id,
-          updates: {
-            ...updates,
-            points: newPoints,
-            center: stroke.center || { x: currentBounds.x + currentBounds.width / 2, y: currentBounds.y + currentBounds.height / 2 }
-          }
+          updates: finalStrokeUpdates
         });
       }
     }

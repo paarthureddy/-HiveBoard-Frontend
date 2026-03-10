@@ -419,16 +419,11 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
 
       ctx.beginPath();
 
-      const isEraser = stroke.isEraser || (color || '').toUpperCase() === '#F8F6F3';
-      if (isEraser) {
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.strokeStyle = 'rgba(0,0,0,1)';
-        ctx.fillStyle = 'rgba(0,0,0,1)';
-      } else {
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = color;
-        ctx.fillStyle = color;
-      }
+      // Vector eraser has completely replaced Raster eraser, so we 
+      // ALWAYS use source-over for standard drawing.
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
 
       if (isFill) {
         if (points.length > 2) {
@@ -474,22 +469,30 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
     ctx.setLineDash([]);
     ctx.restore();
 
-    // Draw Strokes
-    strokes.forEach(s => paintStroke(s));
-    remoteLivedStrokes.forEach(s => paintStroke({ ...s, id: 'remote', userId: 'remote' } as Stroke)); // Casting for now/handling remote structure
+    // Draw Strokes (Purging any legacy raster eraser strokes so they don't look like white lines)
+    strokes.forEach(s => {
+      if (s.isEraser || (s.color || '').toUpperCase() === '#F8F6F3') return;
+      paintStroke(s);
+    });
+    remoteLivedStrokes.forEach(s => {
+      if ((s.color || '').toUpperCase() === '#F8F6F3') return;
+      paintStroke({ ...s, id: 'remote', userId: 'remote' } as Stroke);
+    });
 
     // Logic for current stroke color
-    const color = tool === 'eraser' ? '#F8F6F3' : brushColor;
-    const width = tool === 'eraser' ? brushWidth * 5 : brushWidth;
-    // Temporary stroke object for rendering
-    paintStroke({
-      id: 'current',
-      userId: 'me',
-      points: currentStroke,
-      color,
-      width,
-      isEraser: tool === 'eraser',
-    });
+    if (tool !== 'eraser') {
+      const color = brushColor;
+      const width = brushWidth;
+      // Temporary stroke object for rendering
+      paintStroke({
+        id: 'current',
+        userId: 'me',
+        points: currentStroke,
+        color,
+        width,
+        isEraser: false,
+      });
+    }
     ctx.restore();
 
 

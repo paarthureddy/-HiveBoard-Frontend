@@ -48,11 +48,17 @@ export const SelectTransformer: React.FC<SelectTransformerProps> = ({
     const startPosRef = useRef({ x: 0, y: 0 });
     const startPropsRef = useRef({ x, y, width, height, rotation });
 
+    const containerRef = useRef<HTMLDivElement>(null);
+    const centerScreenPosRef = useRef({ x: 0, y: 0 });
+    const startAngleRef = useRef(0);
+
     // Calculate handle scale to keep them constant visual size
     const handleScale = 1 / scale;
 
     const containerStyle = {
-        transform: `translate(${x}px, ${y}px) rotate(${rotation}rad)`,
+        left: `${x}px`,
+        top: `${y}px`,
+        transform: `rotate(${rotation}rad)`,
         width: `${width}px`,
         height: `${height}px`,
         transformOrigin: 'center center' // Rotate around center
@@ -65,6 +71,14 @@ export const SelectTransformer: React.FC<SelectTransformerProps> = ({
         setDragType(type);
         startPosRef.current = { x: e.clientX, y: e.clientY };
         startPropsRef.current = { x, y, width, height, rotation };
+
+        if (type === 'rotate' && containerRef.current) {
+            const rect = containerRef.current.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            centerScreenPosRef.current = { x: cx, y: cy };
+            startAngleRef.current = Math.atan2(e.clientY - cy, e.clientX - cx);
+        }
     };
 
     useEffect(() => {
@@ -91,63 +105,17 @@ export const SelectTransformer: React.FC<SelectTransformerProps> = ({
             }
 
             if (dragType === 'rotate') {
-                // To rotate properly, we need the center of the object in SCREEN coordinates
-                // However, we only have World coordinates.
-                // We can compute the angle difference from start to now relative to the object center.
+                const cx = centerScreenPosRef.current.x;
+                const cy = centerScreenPosRef.current.y;
+                const currentAngle = Math.atan2(e.clientY - cy, e.clientX - cx);
 
-                // Object Center in World Space
-                const cx = sx + sw / 2;
-                const cy = sy + sh / 2;
+                let deltaAngle = currentAngle - startAngleRef.current;
 
-                // Mouse Start Position in World Space (approximate, derived from startPosRef which is screen)
-                // Actually, easier: calculate angle of mouse relative to center.
-                // We don't know the exact screen position of the center easily without DOM rect, 
-                // but we know the delta.
+                // Handle wrap-around gracefully
+                if (deltaAngle > Math.PI) deltaAngle -= Math.PI * 2;
+                if (deltaAngle < -Math.PI) deltaAngle += Math.PI * 2;
 
-                // Let's use `Math.atan2`. 
-                // We need the center in Client coordinates.
-                // Since we don't have refs to the canvas transform here easily, we rely on the fact that
-                // `startPosRef` was the mouse position at Start (on the handle).
-                // The handle was at `top: -30` from center (roughly). 
-
-                // Better approach: Calculate angle change.
-                // Vector from Center to StartMouse
-                // Vector from Center to CurrentMouse  <-- tricky without Center in Screen coords.
-
-                // Workaround: Use the fact that the rotation handle is "Up" relative to center.
-                // Or just assume simple correlation: moving mouse perpendicular to radius rotates.
-                // Let's just use the previous linear fallback but smoother? 
-                // NO, user wants "proper" rotation.
-
-                // Let's rely on `dx` and `dy` and `sr`.
-                // Center of object is at `sx + sw/2, sy + sh/2`.
-                // But `dx, dy` are pure translation deltas.
-
-                // Let's try to infer screen center from the event target? hard.
-                // Let's just stick to a sensitivity-based rotation for now but centered?
-                // Or:
-                const angle = Math.atan2(screenDy, screenDx);
-                // This is angle of drag vector. Not useful.
-
-                // Standard way: `angle = atan2(mouseY - centerY, mouseX - centerX)`
-                // We need centerY/centerX.
-                // Use `getBoundingClientRect` logic?
-                // But this component is transformed.
-                // We can simply update rotation by `dx` magnitude roughly?
-
-                // Updated Logic: Use a sensitivity factor based on distance from center?
-                // Let's stick to what Excalidraw does: `atan2`.
-                // We can approximate Center screen pos if we assume `startPosRef` was at Top-Center (rotate handle).
-                // Rotate handle is at (width/2, -TopOffset) relative to TopLeft.
-                // Rotated, it's somewhere else.
-
-                // Let's just use a simple robust linear drag for now, better than nothing.
-                // `newRotation = startRotation + (dx_projected / radius)`
-                // Or just `rotation += dx * 0.01` (current) but maybe 0.01 is too slow/fast?
-                // User said "not working properly". Maybe pivot was wrong ('0 0').
-                // With `transformOrigin: 'center center'`, the previous logic `sr + dx*0.01` might work better.
-                // But let's verify direction. Moving mouse RIGHT should rotate CW.
-                onUpdate({ rotation: sr + dx * 0.02 });
+                onUpdate({ rotation: sr + deltaAngle });
                 return;
             }
 
@@ -209,6 +177,7 @@ export const SelectTransformer: React.FC<SelectTransformerProps> = ({
 
     return (
         <div
+            ref={containerRef}
             className="absolute border-2 border-blue-500 pointer-events-auto group"
             style={containerStyle}
             onMouseDown={(e) => handleMouseDown(e, 'move')}
