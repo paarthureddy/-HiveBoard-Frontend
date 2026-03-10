@@ -158,12 +158,15 @@ const ChatPanel = ({
                         </div>
                         <div
                           className={`px-3 py-2 rounded-xl text-sm ${isCurrentUser
-                            ? 'bg-primary text-primary-foreground rounded-br-sm'
-                            : 'bg-muted rounded-bl-sm'
-                            }`}
+                              ? 'bg-primary text-primary-foreground rounded-br-sm'
+                              : 'bg-muted rounded-bl-sm'
+                            } ${message.isPending ? 'opacity-70' : ''}`}
                         >
                           {message.content}
                         </div>
+                        {message.isPending && (
+                          <p className="text-[10px] text-muted-foreground mt-0.5">Sending...</p>
+                        )}
                       </div>
                     </motion.div>
                   );

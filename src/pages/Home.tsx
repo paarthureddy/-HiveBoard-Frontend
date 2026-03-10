@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import html2canvas from 'html2canvas';
 import MeetingRenderer from '@/components/MeetingRenderer';
+import AnalyticsDashboard from '@/components/AnalyticsDashboard';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,8 +17,8 @@ import {
     Calendar,
     Clock,
     Palette,
-    Activity, // Added Activity icon import
-
+    Activity,
+    BarChart2,
     Loader2,
     Share2,
     Download,
@@ -77,6 +78,10 @@ const Home = () => {
     // Download/Image generation states
     const [downloadingMeeting, setDownloadingMeeting] = useState<Meeting | null>(null);
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+
+    // Analytics modal state
+    const [analyticsModalOpen, setAnalyticsModalOpen] = useState(false);
+    const [selectedAnalyticsMeeting, setSelectedAnalyticsMeeting] = useState<Meeting | null>(null);
 
     // Fetch meetings on component mount
     useEffect(() => {
@@ -143,6 +148,12 @@ const Home = () => {
         e.stopPropagation();
         setSelectedMeeting(meeting);
         setShareModalOpen(true);
+    };
+
+    const handleAnalytics = (e: React.MouseEvent, meeting: Meeting) => {
+        e.stopPropagation();
+        setSelectedAnalyticsMeeting(meeting);
+        setAnalyticsModalOpen(true);
     };
 
     // Delete a meeting
@@ -504,6 +515,15 @@ const Home = () => {
                                                             <Share2 className="w-3.5 h-3.5" />
                                                         </Button>
                                                         <Button
+                                                            onClick={(e) => handleAnalytics(e, meeting)}
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="flex-shrink-0 h-8 w-8"
+                                                            title="Analytics"
+                                                        >
+                                                            <BarChart2 className="w-3.5 h-3.5 text-[rgb(95,74,139)]" />
+                                                        </Button>
+                                                        <Button
                                                             onClick={(e) => handleDelete(e, meeting._id)}
                                                             variant="ghost"
                                                             size="icon"
@@ -549,6 +569,16 @@ const Home = () => {
                     isOpen={reportModalOpen}
                     onClose={() => setReportModalOpen(false)}
                 />
+
+                {/* Analytics Dashboard Modal */}
+                {selectedAnalyticsMeeting && (
+                    <AnalyticsDashboard
+                        meetingId={selectedAnalyticsMeeting._id}
+                        meetingTitle={selectedAnalyticsMeeting.title}
+                        isOpen={analyticsModalOpen}
+                        onClose={() => { setAnalyticsModalOpen(false); setSelectedAnalyticsMeeting(null); }}
+                    />
+                )}
 
                 {/* Hidden Renderer */}
                 {downloadingMeeting && downloadingMeeting.canvasData && (

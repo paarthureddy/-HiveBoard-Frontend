@@ -14,10 +14,12 @@ interface UseSocketOptions {
     onPointDrawn?: (data: { userId?: string; guestId?: string; point: { x: number; y: number }; strokeId: string; color: string; width: number }) => void;
     onCanvasCleared?: (data: { userId?: string; guestId?: string }) => void;
     onStrokeUndone?: (data: { userId?: string; guestId?: string }) => void;
-    onCanvasState?: (data: { strokes: any[]; croquis: any[]; stickyNotes?: any[]; textItems?: any[]; }) => void;
+    onCanvasState?: (data: { strokes: any[]; croquis: any[]; stickyNotes?: any[]; textItems?: any[]; backgroundColor?: string; }) => void;
+    onCanvasBackgroundChanged?: (data: { color: string }) => void;
     onError?: (data: { message: string }) => void;
     onChatHistory?: (messages: any[]) => void;
     onReceiveMessage?: (message: any) => void;
+    onMessageConfirmed?: (message: any) => void;
     onCroquisAdded?: (data: { item: any }) => void;
     onCroquisUpdated?: (data: { id: string; updates: any }) => void;
     onStickyAdded?: (data: { note: any }) => void;
@@ -72,6 +74,7 @@ export const useSocket = (options: UseSocketOptions = {}) => {
         const handleError = (data: any) => optionsRef.current.onError?.(data);
         const handleChatHistory = (data: any) => optionsRef.current.onChatHistory?.(data);
         const handleReceiveMessage = (data: any) => optionsRef.current.onReceiveMessage?.(data);
+        const handleMessageConfirmed = (data: any) => optionsRef.current.onMessageConfirmed?.(data);
         const handleCroquisAdded = (data: any) => optionsRef.current.onCroquisAdded?.(data);
         const handleCroquisUpdated = (data: any) => optionsRef.current.onCroquisUpdated?.(data);
         const handleStickyAdded = (data: any) => optionsRef.current.onStickyAdded?.(data);
@@ -81,6 +84,7 @@ export const useSocket = (options: UseSocketOptions = {}) => {
         const handleTextUpdated = (data: any) => optionsRef.current.onTextUpdated?.(data);
         const handleTextDeleted = (data: any) => optionsRef.current.onTextDeleted?.(data);
         const handleStrokeUpdated = (data: any) => optionsRef.current.onStrokeUpdated?.(data);
+        const handleCanvasBackgroundChanged = (data: any) => optionsRef.current.onCanvasBackgroundChanged?.(data);
 
         // Set up event listeners
         socket.on('room-joined', handleRoomJoined);
@@ -96,6 +100,7 @@ export const useSocket = (options: UseSocketOptions = {}) => {
         socket.on('canvas-state', handleCanvasState);
         socket.on('chat-history', handleChatHistory);
         socket.on('receive-message', handleReceiveMessage);
+        socket.on('message-confirmed', handleMessageConfirmed);
         socket.on('add-croquis', handleCroquisAdded);
         socket.on('update-croquis', handleCroquisUpdated);
         socket.on('add-sticky', handleStickyAdded);
@@ -105,6 +110,8 @@ export const useSocket = (options: UseSocketOptions = {}) => {
         socket.on('update-text', handleTextUpdated);
         socket.on('delete-text', handleTextDeleted);
         socket.on('update-stroke', handleStrokeUpdated);
+        socket.on('canvas-background-changed', handleCanvasBackgroundChanged);
+ main
         socket.on('error', handleError);
 
         // Cleanup on unmount
@@ -123,6 +130,7 @@ export const useSocket = (options: UseSocketOptions = {}) => {
             socket.off('canvas-state', handleCanvasState);
             socket.off('chat-history', handleChatHistory);
             socket.off('receive-message', handleReceiveMessage);
+            socket.off('message-confirmed', handleMessageConfirmed);
             socket.off('add-croquis', handleCroquisAdded);
             socket.off('update-croquis', handleCroquisUpdated);
             socket.off('add-sticky', handleStickyAdded);
@@ -132,6 +140,8 @@ export const useSocket = (options: UseSocketOptions = {}) => {
             socket.off('update-text', handleTextUpdated);
             socket.off('delete-text', handleTextDeleted);
             socket.off('update-stroke', handleStrokeUpdated);
+            socket.off('canvas-background-changed', handleCanvasBackgroundChanged);
+ main
 
             disconnectSocket();
         };
