@@ -9,7 +9,7 @@ import { useCanvas } from "@/hooks/useCanvas";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGuest } from "@/contexts/GuestContext";
 import { useSocket } from "@/hooks/useSocket";
-import { joinRoom, leaveRoom, sendStroke, sendPoint, sendClearCanvas, sendUndo, requestCanvasState, sendMessage, sendCanvasBackground, sendAddCroquis, sendUpdateCroquis, sendDeleteCroquis, sendAddSticky, sendUpdateSticky, sendDeleteSticky, sendAddText, sendUpdateText, sendDeleteText, sendUpdateStroke } from "@/lib/socket";
+import { joinRoom, leaveRoom, sendStroke, sendPoint, sendClearCanvas, sendUndo, requestCanvasState, sendMessage, sendCanvasBackground, sendAddCroquis, sendUpdateCroquis, sendDeleteCroquis, sendAddSticky, sendUpdateSticky, sendDeleteSticky, sendAddText, sendUpdateText, sendDeleteText, sendUpdateStroke, sendDeleteStroke } from "@/lib/socket";
 import { meetingsAPI } from "@/lib/api";
 import Toolbar from "@/components/canvas/Toolbar";
 import ChatPanel from "@/components/canvas/ChatPanel";
@@ -118,6 +118,7 @@ const Canvas = () => {
   // Tracks which object is currently selected for editing (move, resize, rotate)
   // Unified to handle different types via a single transformer component
   const [selectedObject, setSelectedObject] = useState<{ id: string; type: 'sticky' | 'text' | 'croquis' | 'stroke' } | null>(null);
+  const [clipboard, setClipboard] = useState<{ type: 'sticky' | 'text' | 'croquis' | 'stroke'; item: any } | null>(null);
 
   // Prevent conflicting with existing logic
   // const [selectedCroquisId, setSelectedCroquisId] = useState<string | null>(null); // Replaced by selectedObject
@@ -203,6 +204,9 @@ const Canvas = () => {
         croquisLayerRef.current.style.transform = transform;
         croquisLayerRef.current.style.transformOrigin = '0 0';
       }
+    },
+    onDeleteStroke: (strokeId) => {
+      sendDeleteStroke({ meetingId: meetingId || undefined, id: strokeId });
     }
   });
 
@@ -222,6 +226,90 @@ const Canvas = () => {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [isParticipantsListOpen, setIsParticipantsListOpen] = useState(false);
+
+  // --- Keyboard Shortcuts (Copy / Paste / Delete) ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if typing in an input field/textarea
+      if (document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement) {
+        return;
+      }
+      if (isReadOnly) return; // Disallow guest/viewer modifying the board
+
+      const isModifierPressed = e.ctrlKey || e.metaKey;
+
+      // Copy
+      if (isModifierPressed && e.key.toLowerCase() === 'c') {
+        if (!selectedObject) return;
+
+        let itemToCopy = null;
+        if (selectedObject.type === 'sticky') itemToCopy = stickyNotes.find(s => s.id === selectedObject.id);
+        else if (selectedObject.type === 'text') itemToCopy = textItems.find(t => t.id === selectedObject.id);
+        else if (selectedObject.type === 'croquis') itemToCopy = croquisItems.find(c => c.id === selectedObject.id);
+        else if (selectedObject.type === 'stroke') itemToCopy = strokes.find(s => s.id === selectedObject.id);
+
+        if (itemToCopy) {
+          setClipboard({ type: selectedObject.type, item: itemToCopy });
+          toast({ title: 'Copied', description: 'Item copied to clipboard.', duration: 1500 });
+        }
+      }
+
+      // Paste
+      if (isModifierPressed && e.key.toLowerCase() === 'v') {
+        if (!clipboard) return;
+
+        const newId = crypto.randomUUID();
+        const offset = 20; // Visual offset when pasting
+
+        if (clipboard.type === 'sticky') {
+          const newItem = { ...clipboard.item, id: newId, x: clipboard.item.x + offset, y: clipboard.item.y + offset };
+          setStickyNotes(prev => [...prev, newItem]);
+          sendAddSticky({ meetingId: meetingId || undefined, note: newItem });
+          setSelectedObject({ id: newId, type: 'sticky' });
+        } else if (clipboard.type === 'text') {
+          const newItem = { ...clipboard.item, id: newId, x: clipboard.item.x + offset, y: clipboard.item.y + offset };
+          setTextItems(prev => [...prev, newItem]);
+          sendAddText({ meetingId: meetingId || undefined, item: newItem });
+          setSelectedObject({ id: newId, type: 'text' });
+        } else if (clipboard.type === 'croquis') {
+          const newItem = { ...clipboard.item, id: newId, x: clipboard.item.x + offset, y: clipboard.item.y + offset };
+          setCroquisItems(prev => [...prev, newItem]);
+          sendAddCroquis({ meetingId: meetingId || undefined, item: newItem });
+          setSelectedObject({ id: newId, type: 'croquis' });
+        } else if (clipboard.type === 'stroke') {
+          const newPoints = clipboard.item.points.map((p: any) => ({ ...p, x: p.x + offset, y: p.y + offset }));
+          const newItem = { ...clipboard.item, id: newId, points: newPoints };
+          setStrokes((prev: any) => [...prev, newItem]);
+          sendStroke({ meetingId: meetingId || undefined, stroke: newItem });
+          setSelectedObject({ id: newId, type: 'stroke' });
+        }
+
+        toast({ title: 'Pasted', description: 'Item pasted onto canvas.', duration: 1500 });
+      }
+
+      // Delete
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (!selectedObject) return;
+        if (selectedObject.type === 'sticky') {
+          setStickyNotes(prev => prev.filter(n => n.id !== selectedObject.id));
+          sendDeleteSticky({ meetingId: meetingId || undefined, id: selectedObject.id });
+        } else if (selectedObject.type === 'text') {
+          setTextItems(prev => prev.filter(t => t.id !== selectedObject.id));
+          sendDeleteText({ meetingId: meetingId || undefined, id: selectedObject.id });
+        } else if (selectedObject.type === 'croquis') {
+          setCroquisItems(prev => prev.filter(c => c.id !== selectedObject.id));
+          sendDeleteCroquis({ meetingId: meetingId || undefined, id: selectedObject.id });
+        } else if (selectedObject.type === 'stroke') {
+          setStrokes((prev: any) => prev.filter((s: any) => s.id !== selectedObject.id));
+          sendDeleteStroke({ meetingId: meetingId || undefined, id: selectedObject.id });
+        }
+        setSelectedObject(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedObject, clipboard, stickyNotes, textItems, croquisItems, strokes, isReadOnly, meetingId, toast]);
 
   // Pan/Zoom State
   const [isPanning, setIsPanning] = useState(false);
@@ -752,6 +840,9 @@ const Canvas = () => {
     },
     onStrokeUpdated: (data) => {
       updateStroke(data.id, data.updates);
+    },
+    onStrokeDeleted: (data) => {
+      setStrokes(prev => prev.filter(s => s.id !== data.id));
     },
     onCanvasState: (data) => {
       setInitialStrokes(data.strokes);

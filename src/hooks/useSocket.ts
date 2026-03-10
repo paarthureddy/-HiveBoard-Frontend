@@ -29,6 +29,7 @@ interface UseSocketOptions {
     onTextUpdated?: (data: { id: string; updates: any }) => void;
     onTextDeleted?: (data: { id: string }) => void;
     onStrokeUpdated?: (data: { id: string; updates: any }) => void;
+    onStrokeDeleted?: (data: { id: string }) => void;
 }
 
 /**
@@ -82,8 +83,9 @@ export const useSocket = (options: UseSocketOptions = {}) => {
         const handleStickyDeleted = (data: any) => optionsRef.current.onStickyDeleted?.(data);
         const handleTextAdded = (data: any) => optionsRef.current.onTextAdded?.(data);
         const handleTextUpdated = (data: any) => optionsRef.current.onTextUpdated?.(data);
-        const handleTextDeleted = (data: any) => optionsRef.current.onTextDeleted?.(data);
-        const handleStrokeUpdated = (data: any) => optionsRef.current.onStrokeUpdated?.(data);
+        const handleTextDeleted = (data: { id: string }) => optionsRef.current.onTextDeleted?.(data);
+        const handleStrokeUpdated = (data: { id: string; updates: any }) => optionsRef.current.onStrokeUpdated?.(data);
+        const handleStrokeDeleted = (data: { id: string }) => optionsRef.current.onStrokeDeleted?.(data);
         const handleCanvasBackgroundChanged = (data: any) => optionsRef.current.onCanvasBackgroundChanged?.(data);
 
         // Set up event listeners
@@ -110,6 +112,7 @@ export const useSocket = (options: UseSocketOptions = {}) => {
         socket.on('update-text', handleTextUpdated);
         socket.on('delete-text', handleTextDeleted);
         socket.on('update-stroke', handleStrokeUpdated);
+        socket.on('delete-stroke', handleStrokeDeleted);
         socket.on('error', handleError);
 
         // Cleanup on unmount
@@ -138,6 +141,7 @@ export const useSocket = (options: UseSocketOptions = {}) => {
             socket.off('update-text', handleTextUpdated);
             socket.off('delete-text', handleTextDeleted);
             socket.off('update-stroke', handleStrokeUpdated);
+            socket.off('delete-stroke', handleStrokeDeleted);
 
             disconnectSocket();
         };

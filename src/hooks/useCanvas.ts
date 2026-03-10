@@ -8,6 +8,7 @@ export interface UseCanvasOptions {
   onClear?: () => void;
   onUndo?: () => void;
   onViewUpdate?: (scale: number, offset: Point) => void;
+  onDeleteStroke?: (strokeId: string) => void;
 }
 
 /**
@@ -22,7 +23,7 @@ export interface UseCanvasOptions {
  * It uses a "game loop" style rendering system with requestAnimationFrame for smooth performance.
  */
 export const useCanvas = (options: UseCanvasOptions = {}) => {
-  const { onDrawStroke, onDrawPoint, onClear, onUndo, onViewUpdate } = options;
+  const { onDrawStroke, onDrawPoint, onClear, onUndo, onViewUpdate, onDeleteStroke } = options;
   // --- State Management ---
   // Core canvas references
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -247,20 +248,31 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
     const point = getCanvasPoint(e);
     if (!point) return;
 
-
+    if (tool === 'eraser') {
+      setIsDrawing(true);
+      // Vector Erasing logic
+      const eraseRadius = brushWidth * 5;
+      setStrokes(prev => {
+        const keeps = prev.filter(stroke => {
+          const hit = stroke.points.some(p => Math.hypot(p.x - point.x, p.y - point.y) < eraseRadius);
+          if (hit && onDeleteStroke) onDeleteStroke(stroke.id);
+          return !hit;
+        });
+        if (keeps.length !== prev.length) requestRedrawRef.current();
+        return keeps;
+      });
+      return;
+    }
 
     setIsDrawing(true);
     currentStrokeIdRef.current = crypto.randomUUID();
     setCurrentStroke([point]);
 
     if (onDrawPoint) {
-      const color = tool === 'eraser' ? '#F8F6F3' : brushColor;
-      const width = tool === 'eraser' ? brushWidth * 3 : brushWidth;
-      const isEraser = tool === 'eraser';
-      onDrawPoint(point, currentStrokeIdRef.current, color, width, isEraser);
+      onDrawPoint(point, currentStrokeIdRef.current, brushColor, brushWidth, false);
     }
     requestRedrawRef.current();
-  }, [getCanvasPoint, onDrawPoint, tool, brushColor, brushWidth]);
+  }, [getCanvasPoint, onDrawPoint, tool, brushColor, brushWidth, strokes, onDeleteStroke]);
 
   const draw = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     if (!isDrawing) return;
@@ -269,6 +281,20 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
     const point = getCanvasPoint(e);
     if (!point) return;
 
+    if (tool === 'eraser') {
+      const eraseRadius = brushWidth * 5;
+      setStrokes(prev => {
+        const keeps = prev.filter(stroke => {
+          const hit = stroke.points.some(p => Math.hypot(p.x - point.x, p.y - point.y) < eraseRadius);
+          if (hit && onDeleteStroke) onDeleteStroke(stroke.id);
+          return !hit;
+        });
+        if (keeps.length !== prev.length) requestRedrawRef.current();
+        return keeps;
+      });
+      return;
+    }
+
     setCurrentStroke(prev => {
       // Small optimization: don't add duplicate points if very close?
       // For now, raw input is fine.
@@ -276,26 +302,29 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
     });
 
     if (onDrawPoint) {
-      const color = tool === 'eraser' ? '#F8F6F3' : brushColor;
-      const width = tool === 'eraser' ? brushWidth * 3 : brushWidth;
-      const isEraser = tool === 'eraser';
-      onDrawPoint(point, currentStrokeIdRef.current, color, width, isEraser);
+      onDrawPoint(point, currentStrokeIdRef.current, brushColor, brushWidth, false);
     }
     requestRedrawRef.current();
-  }, [isDrawing, getCanvasPoint, onDrawPoint, tool, brushColor, brushWidth]);
+  }, [isDrawing, getCanvasPoint, onDrawPoint, tool, brushColor, brushWidth, onDeleteStroke]);
 
   const stopDrawing = useCallback(() => {
-    if (!isDrawing || currentStroke.length === 0) return;
+    if (!isDrawing) return;
+    if (tool === 'eraser') {
+      setIsDrawing(false);
+      return;
+    }
+
+    if (currentStroke.length === 0) return;
     // If Sticky tool, Text tool, or Select tool is active, don't draw strokes.
     if (tool === 'sticky' || tool === 'text' || tool === 'select' || tool === 'fill') return;
 
     const newStroke: Stroke = {
       id: currentStrokeIdRef.current,
       points: currentStroke,
-      color: tool === 'eraser' ? '#F8F6F3' : brushColor,
-      width: tool === 'eraser' ? brushWidth * 3 : brushWidth,
+      color: brushColor,
+      width: brushWidth,
       userId: 'current-user',
-      isEraser: tool === 'eraser',
+      isEraser: false,
     };
 
     setStrokes(prev => [...prev, newStroke]);
