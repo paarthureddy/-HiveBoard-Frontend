@@ -9,7 +9,7 @@ import { useCanvas } from "@/hooks/useCanvas";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGuest } from "@/contexts/GuestContext";
 import { useSocket } from "@/hooks/useSocket";
-import { joinRoom, leaveRoom, sendStroke, sendPoint, sendClearCanvas, sendUndo, requestCanvasState, sendMessage, sendCanvasBackground, sendAddCroquis, sendUpdateCroquis, sendDeleteCroquis, sendAddSticky, sendUpdateSticky, sendDeleteSticky, sendAddText, sendUpdateText, sendDeleteText, sendUpdateStroke } from "@/lib/socket";
+import { joinRoom, leaveRoom, sendStroke, sendPoint, sendClearCanvas, sendUndo, requestCanvasState, sendMessage, sendCanvasBackground, sendAddCroquis, sendUpdateCroquis, sendDeleteCroquis, sendAddSticky, sendUpdateSticky, sendDeleteSticky, sendAddText, sendUpdateText, sendDeleteText, sendUpdateStroke, sendDeleteStroke } from "@/lib/socket";
 import { meetingsAPI } from "@/lib/api";
 import Toolbar from "@/components/canvas/Toolbar";
 import ChatPanel from "@/components/canvas/ChatPanel";
@@ -118,6 +118,7 @@ const Canvas = () => {
   // Tracks which object is currently selected for editing (move, resize, rotate)
   // Unified to handle different types via a single transformer component
   const [selectedObject, setSelectedObject] = useState<{ id: string; type: 'sticky' | 'text' | 'croquis' | 'stroke' } | null>(null);
+  const [clipboard, setClipboard] = useState<{ type: 'sticky' | 'text' | 'croquis' | 'stroke'; item: any } | null>(null);
 
   // Prevent conflicting with existing logic
   // const [selectedCroquisId, setSelectedCroquisId] = useState<string | null>(null); // Replaced by selectedObject
@@ -203,6 +204,9 @@ const Canvas = () => {
         croquisLayerRef.current.style.transform = transform;
         croquisLayerRef.current.style.transformOrigin = '0 0';
       }
+    },
+    onDeleteStroke: (strokeId) => {
+      sendDeleteStroke({ meetingId: meetingId || undefined, id: strokeId });
     }
   });
 
@@ -222,6 +226,101 @@ const Canvas = () => {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [isParticipantsListOpen, setIsParticipantsListOpen] = useState(false);
+
+  // --- Keyboard Shortcuts (Copy / Paste / Delete) ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isReadOnly) return; // Disallow guest/viewer modifying the board
+
+      const activeEl = document.activeElement;
+      const isInputFocused = activeEl instanceof HTMLInputElement || activeEl instanceof HTMLTextAreaElement;
+      const isModifierPressed = e.ctrlKey || e.metaKey;
+
+      // Copy
+      if (isModifierPressed && e.key.toLowerCase() === 'c') {
+        if (isInputFocused) {
+          const el = activeEl as HTMLInputElement | HTMLTextAreaElement;
+          if (el.selectionStart !== el.selectionEnd) return; // Let native OS copy text
+        }
+
+        if (!selectedObject) return;
+
+        let itemToCopy = null;
+        if (selectedObject.type === 'sticky') itemToCopy = stickyNotes.find(s => s.id === selectedObject.id);
+        else if (selectedObject.type === 'text') itemToCopy = textItems.find(t => t.id === selectedObject.id);
+        else if (selectedObject.type === 'croquis') itemToCopy = croquisItems.find(c => c.id === selectedObject.id);
+        else if (selectedObject.type === 'stroke') itemToCopy = strokes.find(s => s.id === selectedObject.id);
+
+        if (itemToCopy) {
+          setClipboard({ type: selectedObject.type, item: itemToCopy });
+          toast({ title: 'Copied', description: 'Item copied to clipboard.', duration: 1500 });
+        }
+      }
+
+      // Paste
+      if (isModifierPressed && e.key.toLowerCase() === 'v') {
+        if (isInputFocused && !clipboard) return; // Allow native OS text paste if we have no object
+
+        if (!clipboard) return;
+
+        // If we have an object to paste, we intercept it even in inputs
+        if (isInputFocused) {
+          activeEl.blur(); // Blur so the user sees the newly pasted object instead
+        }
+
+        const newId = crypto.randomUUID();
+        const offset = 20; // Visual offset when pasting
+
+        if (clipboard.type === 'sticky') {
+          const newItem = { ...clipboard.item, id: newId, x: clipboard.item.x + offset, y: clipboard.item.y + offset };
+          setStickyNotes(prev => [...prev, newItem]);
+          sendAddSticky({ meetingId: meetingId || undefined, note: newItem });
+          setSelectedObject({ id: newId, type: 'sticky' });
+        } else if (clipboard.type === 'text') {
+          const newItem = { ...clipboard.item, id: newId, x: clipboard.item.x + offset, y: clipboard.item.y + offset };
+          setTextItems(prev => [...prev, newItem]);
+          sendAddText({ meetingId: meetingId || undefined, item: newItem });
+          setSelectedObject({ id: newId, type: 'text' });
+        } else if (clipboard.type === 'croquis') {
+          const newItem = { ...clipboard.item, id: newId, x: clipboard.item.x + offset, y: clipboard.item.y + offset };
+          setCroquisItems(prev => [...prev, newItem]);
+          sendAddCroquis({ meetingId: meetingId || undefined, item: newItem });
+          setSelectedObject({ id: newId, type: 'croquis' });
+        } else if (clipboard.type === 'stroke') {
+          const newPoints = clipboard.item.points.map((p: any) => ({ ...p, x: p.x + offset, y: p.y + offset }));
+          const newItem = { ...clipboard.item, id: newId, points: newPoints };
+          setStrokes((prev: any) => [...prev, newItem]);
+          sendStroke({ meetingId: meetingId || undefined, stroke: newItem });
+          setSelectedObject({ id: newId, type: 'stroke' });
+        }
+
+        toast({ title: 'Pasted', description: 'Item pasted onto canvas.', duration: 1500 });
+      }
+
+      // Delete
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (isInputFocused) return; // Let user backspace out text naturally
+        if (!selectedObject) return;
+        if (selectedObject.type === 'sticky') {
+          setStickyNotes(prev => prev.filter(n => n.id !== selectedObject.id));
+          sendDeleteSticky({ meetingId: meetingId || undefined, id: selectedObject.id });
+        } else if (selectedObject.type === 'text') {
+          setTextItems(prev => prev.filter(t => t.id !== selectedObject.id));
+          sendDeleteText({ meetingId: meetingId || undefined, id: selectedObject.id });
+        } else if (selectedObject.type === 'croquis') {
+          setCroquisItems(prev => prev.filter(c => c.id !== selectedObject.id));
+          sendDeleteCroquis({ meetingId: meetingId || undefined, id: selectedObject.id });
+        } else if (selectedObject.type === 'stroke') {
+          setStrokes((prev: any) => prev.filter((s: any) => s.id !== selectedObject.id));
+          sendDeleteStroke({ meetingId: meetingId || undefined, id: selectedObject.id });
+        }
+        setSelectedObject(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedObject, clipboard, stickyNotes, textItems, croquisItems, strokes, isReadOnly, meetingId, toast]);
 
   // Pan/Zoom State
   const [isPanning, setIsPanning] = useState(false);
@@ -753,6 +852,9 @@ const Canvas = () => {
     onStrokeUpdated: (data) => {
       updateStroke(data.id, data.updates);
     },
+    onStrokeDeleted: (data) => {
+      setStrokes(prev => prev.filter(s => s.id !== data.id));
+    },
     onCanvasState: (data) => {
       setInitialStrokes(data.strokes);
       if (data.croquis) setCroquisItems(data.croquis);
@@ -932,8 +1034,15 @@ const Canvas = () => {
       setStickyNotes(prev => prev.map(n => n.id === selectedObject.id ? { ...n, ...updates } : n));
       sendUpdateSticky({ meetingId: meetingId || undefined, id: selectedObject.id, updates });
     } else if (selectedObject.type === 'text') {
-      setTextItems(prev => prev.map(t => t.id === selectedObject.id ? { ...t, ...updates } : t));
-      sendUpdateText({ meetingId: meetingId || undefined, id: selectedObject.id, updates });
+      const oldItem = textItems.find(t => t.id === selectedObject.id);
+      let nextUpdates: any = { ...updates };
+      // Text specifically should scale font size when the bounding box height is dragged
+      if (oldItem && updates.height && oldItem.height) {
+        const scale = updates.height / oldItem.height;
+        nextUpdates.fontSize = (oldItem.fontSize || 24) * scale;
+      }
+      setTextItems(prev => prev.map(t => t.id === selectedObject.id ? { ...t, ...nextUpdates } : t));
+      sendUpdateText({ meetingId: meetingId || undefined, id: selectedObject.id, updates: nextUpdates });
     } else if (selectedObject.type === 'croquis') {
       updateCroquis(selectedObject.id, updates);
     } else if (selectedObject.type === 'stroke') {
@@ -942,29 +1051,49 @@ const Canvas = () => {
         // Calculate interactions
         // If x/y changed, shift points
         const currentBounds = getStrokeBounds(stroke);
-        const dx = (updates.x !== undefined) ? updates.x - currentBounds.x : 0;
-        const dy = (updates.y !== undefined) ? updates.y - currentBounds.y : 0;
+        const { width: newWidth, height: newHeight, rotation, ...restUpdates } = updates;
+
+        const targetX = (updates.x !== undefined) ? updates.x : currentBounds.x;
+        const targetY = (updates.y !== undefined) ? updates.y : currentBounds.y;
 
         let newPoints = stroke.points;
-        if (dx !== 0 || dy !== 0) {
-          newPoints = stroke.points.map(p => ({ x: p.x + dx, y: p.y + dy }));
+        const widthChanged = newWidth !== undefined && newWidth !== currentBounds.width;
+        const heightChanged = newHeight !== undefined && newHeight !== currentBounds.height;
+
+        let scaleX = 1;
+        let scaleY = 1;
+
+        const w1 = currentBounds.width || 1;
+        const h1 = currentBounds.height || 1;
+
+        if (widthChanged) scaleX = newWidth / w1;
+        if (heightChanged) scaleY = newHeight / h1;
+
+        if (updates.x !== undefined || updates.y !== undefined || widthChanged || heightChanged) {
+          newPoints = stroke.points.map(p => ({
+            x: (p.x - currentBounds.x) * scaleX + targetX,
+            y: (p.y - currentBounds.y) * scaleY + targetY,
+          }));
         }
 
-        updateStroke(selectedObject.id, {
-          ...updates,
-          points: newPoints,
-          // Ensure center is set for rotation
-          center: stroke.center || { x: currentBounds.x + currentBounds.width / 2, y: currentBounds.y + currentBounds.height / 2 }
-        });
+        const newTargetW = newWidth ?? currentBounds.width;
+        const newTargetH = newHeight ?? currentBounds.height;
 
+        const finalStrokeUpdates: any = {
+          ...restUpdates, // Rest updates safely contain x/y but NOT width/height.
+          points: newPoints,
+          center: { x: targetX + newTargetW / 2, y: targetY + newTargetH / 2 }
+        };
+
+        if (rotation !== undefined) {
+          finalStrokeUpdates.rotation = rotation;
+        }
+
+        updateStroke(selectedObject.id, finalStrokeUpdates);
         sendUpdateStroke({
           meetingId: meetingId || undefined,
           id: selectedObject.id,
-          updates: {
-            ...updates,
-            points: newPoints,
-            center: stroke.center || { x: currentBounds.x + currentBounds.width / 2, y: currentBounds.y + currentBounds.height / 2 }
-          }
+          updates: finalStrokeUpdates
         });
       }
     }
