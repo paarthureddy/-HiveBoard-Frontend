@@ -657,7 +657,7 @@ const Canvas = () => {
         id: msg._id,
         userId: msg.userId || msg.guestId,
         guestId: msg.guestId,
-        userName: msg.userName,
+        userName: msg.userName || 'Anonymous',
         content: msg.content,
         timestamp: new Date(msg.timestamp)
       })));
@@ -680,7 +680,7 @@ const Canvas = () => {
           id: msg._id,
           userId: msg.userId || msg.guestId,
           guestId: msg.guestId,
-          userName: msg.userName,
+          userName: msg.userName || 'Anonymous',
           content: msg.content,
           timestamp: new Date(msg.timestamp)
         }];
@@ -698,7 +698,7 @@ const Canvas = () => {
             id: msg._id,
             userId: msg.userId || msg.guestId,
             guestId: msg.guestId,
-            userName: msg.userName,
+            userName: msg.userName || 'Anonymous',
             content: msg.content,
             timestamp: new Date(msg.timestamp),
             isPending: false,
@@ -711,7 +711,7 @@ const Canvas = () => {
           id: msg._id,
           userId: msg.userId || msg.guestId,
           guestId: msg.guestId,
-          userName: msg.userName,
+          userName: msg.userName || 'Anonymous',
           content: msg.content,
           timestamp: new Date(msg.timestamp),
         }];

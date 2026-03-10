@@ -144,7 +144,7 @@ const ChatPanel = ({
                           color: user?.color || '#9BA68B',
                         }}
                       >
-                        {message.userName.charAt(0).toUpperCase()}
+                        {(message.userName || 'Anonymous').charAt(0).toUpperCase()}
                       </div>
                       <div className={`max-w-[75%] ${isCurrentUser ? 'text-right' : ''}`}>
                         <div className="flex items-baseline gap-2 mb-1">
@@ -158,8 +158,8 @@ const ChatPanel = ({
                         </div>
                         <div
                           className={`px-3 py-2 rounded-xl text-sm ${isCurrentUser
-                              ? 'bg-primary text-primary-foreground rounded-br-sm'
-                              : 'bg-muted rounded-bl-sm'
+                            ? 'bg-primary text-primary-foreground rounded-br-sm'
+                            : 'bg-muted rounded-bl-sm'
                             } ${message.isPending ? 'opacity-70' : ''}`}
                         >
                           {message.content}

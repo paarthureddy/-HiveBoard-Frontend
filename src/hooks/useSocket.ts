@@ -110,8 +110,6 @@ export const useSocket = (options: UseSocketOptions = {}) => {
         socket.on('update-text', handleTextUpdated);
         socket.on('delete-text', handleTextDeleted);
         socket.on('update-stroke', handleStrokeUpdated);
-        socket.on('canvas-background-changed', handleCanvasBackgroundChanged);
- main
         socket.on('error', handleError);
 
         // Cleanup on unmount
@@ -140,8 +138,6 @@ export const useSocket = (options: UseSocketOptions = {}) => {
             socket.off('update-text', handleTextUpdated);
             socket.off('delete-text', handleTextDeleted);
             socket.off('update-stroke', handleStrokeUpdated);
-            socket.off('canvas-background-changed', handleCanvasBackgroundChanged);
- main
 
             disconnectSocket();
         };

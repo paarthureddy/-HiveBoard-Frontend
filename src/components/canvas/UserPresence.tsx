@@ -67,7 +67,7 @@ const UserPresence = ({ users, currentUserId, onClick, vertical = false, maxVisi
                 className="w-full h-full rounded-full object-cover"
               />
             ) : (
-              user.name.charAt(0).toUpperCase()
+              (user.name || 'Anonymous').charAt(0).toUpperCase()
             )}
           </div>
 
