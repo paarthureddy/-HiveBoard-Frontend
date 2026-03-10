@@ -2,10 +2,10 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useSocket } from '../hooks/useSocket';
-import * as socketLib from '../lib/socket.ts';
+import * as socketLib from '@/lib/socket';
 
 // Mock the socket library
-vi.mock('../lib/socket.ts', () => ({
+vi.mock('@/lib/socket', () => ({
     getSocket: vi.fn(),
     connectSocket: vi.fn(),
     disconnectSocket: vi.fn(),

@@ -302,8 +302,8 @@ const Home = () => {
                     className="relative z-10 border-b border-[rgb(95,74,139)] backdrop-blur-md"
                     style={{ backgroundColor: 'rgba(95, 74, 139, 0.75)' }}
                 >
-                    <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
+                    <div className="container mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+                        <div className="flex flex-col sm:flex-row items-center gap-3">
                             <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden border-2 border-black/20">
                                 <img src={logo} alt="HiveBoard Logo" className="w-full h-full object-cover" />
                             </div>
@@ -475,7 +475,7 @@ const Home = () => {
                                                     <h3 className="font-display text-xl font-semibold text-[rgb(95,74,139)] group-hover:text-primary transition-colors flex-1">
                                                         {meeting.title}
                                                     </h3>
-                                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-wrap justify-end">
                                                         <Button
                                                             onClick={(e) => startEditing(e, meeting)}
                                                             variant="ghost"

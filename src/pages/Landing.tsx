@@ -20,7 +20,7 @@ const Landing = () => {
   const { isAuthenticated } = useAuth();
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'rgb(245, 244, 235)' }}>
+    <div className="min-h-screen overflow-x-hidden" style={{ backgroundColor: 'rgb(245, 244, 235)' }}>
       {/* Navigation */}
       <nav
         className="fixed top-0 left-0 right-0 z-50 border-b border-[rgb(95,74,139)] backdrop-blur-md"
@@ -53,11 +53,7 @@ const Landing = () => {
                 </Button>
               </>
             )}
-            {isAuthenticated && (
-              <Button variant="elegant" size="sm" asChild className="text-[rgb(245,244,235)] hover:bg-white/10 hover:text-[rgb(245,244,235)]">
-                <Link to="/home">My Projects</Link>
-              </Button>
-            )}
+
           </motion.div>
         </div>
       </nav>
