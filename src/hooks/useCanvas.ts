@@ -4,7 +4,7 @@ import { Stroke, Point } from '@/types/canvas';
 
 export interface UseCanvasOptions {
   onDrawStroke?: (stroke: Stroke) => void;
-  onDrawPoint?: (point: Point, strokeId: string, color: string, width: number) => void;
+  onDrawPoint?: (point: Point, strokeId: string, color: string, width: number, isEraser?: boolean) => void;
   onClear?: () => void;
   onUndo?: () => void;
   onViewUpdate?: (scale: number, offset: Point) => void;
@@ -256,7 +256,8 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
     if (onDrawPoint) {
       const color = tool === 'eraser' ? '#F8F6F3' : brushColor;
       const width = tool === 'eraser' ? brushWidth * 3 : brushWidth;
-      onDrawPoint(point, currentStrokeIdRef.current, color, width);
+      const isEraser = tool === 'eraser';
+      onDrawPoint(point, currentStrokeIdRef.current, color, width, isEraser);
     }
     requestRedrawRef.current();
   }, [getCanvasPoint, onDrawPoint, tool, brushColor, brushWidth]);
@@ -277,7 +278,8 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
     if (onDrawPoint) {
       const color = tool === 'eraser' ? '#F8F6F3' : brushColor;
       const width = tool === 'eraser' ? brushWidth * 3 : brushWidth;
-      onDrawPoint(point, currentStrokeIdRef.current, color, width);
+      const isEraser = tool === 'eraser';
+      onDrawPoint(point, currentStrokeIdRef.current, color, width, isEraser);
     }
     requestRedrawRef.current();
   }, [isDrawing, getCanvasPoint, onDrawPoint, tool, brushColor, brushWidth]);
@@ -293,6 +295,7 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
       color: tool === 'eraser' ? '#F8F6F3' : brushColor,
       width: tool === 'eraser' ? brushWidth * 3 : brushWidth,
       userId: 'current-user',
+      isEraser: tool === 'eraser',
     };
 
     setStrokes(prev => [...prev, newStroke]);
@@ -374,7 +377,7 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
     // Painting Helper
     const paintStroke = (stroke: Stroke) => {
       const { points, color, width, rotation, center, isFill } = stroke;
-      if (points.length < 2 && !isFill) return;
+      if (points.length < 1) return;
 
       ctx.save();
 
@@ -387,10 +390,11 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
 
       ctx.beginPath();
 
-      const isEraser = color === '#F8F6F3';
+      const isEraser = stroke.isEraser || (color || '').toUpperCase() === '#F8F6F3';
       if (isEraser) {
         ctx.globalCompositeOperation = 'destination-out';
         ctx.strokeStyle = 'rgba(0,0,0,1)';
+        ctx.fillStyle = 'rgba(0,0,0,1)';
       } else {
         ctx.globalCompositeOperation = 'source-over';
         ctx.strokeStyle = color;
@@ -411,16 +415,21 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
-        ctx.moveTo(points[0].x, points[0].y);
-        for (let i = 1; i < points.length - 1; i++) {
-          const xc = (points[i].x + points[i + 1].x) / 2;
-          const yc = (points[i].y + points[i + 1].y) / 2;
-          ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+        if (points.length === 1) {
+          ctx.arc(points[0].x, points[0].y, width / 2, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.moveTo(points[0].x, points[0].y);
+          for (let i = 1; i < points.length - 1; i++) {
+            const xc = (points[i].x + points[i + 1].x) / 2;
+            const yc = (points[i].y + points[i + 1].y) / 2;
+            ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+          }
+          if (points.length > 1) {
+            ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
+          }
+          ctx.stroke();
         }
-        if (points.length > 1) {
-          ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
-        }
-        ctx.stroke();
       }
 
       // Reset composite operation
@@ -449,7 +458,8 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
       userId: 'me',
       points: currentStroke,
       color,
-      width
+      width,
+      isEraser: tool === 'eraser',
     });
     ctx.restore();
 
@@ -541,14 +551,14 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
     });
   }, []);
 
-  const drawRemotePoint = useCallback((point: Point, strokeId: string, color: string, width: number) => {
+  const drawRemotePoint = useCallback((point: Point, strokeId: string, color: string, width: number, isEraser?: boolean) => {
     setRemoteLiveStrokes(prev => {
       const newMap = new Map(prev);
       const existing = newMap.get(strokeId);
       if (existing) {
         newMap.set(strokeId, { ...existing, points: [...existing.points, point] });
       } else {
-        newMap.set(strokeId, { points: [point], color, width });
+        newMap.set(strokeId, { points: [point], color, width, isEraser: isEraser || color === '#F8F6F3' } as any);
       }
       return newMap;
     });

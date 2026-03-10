@@ -211,6 +211,7 @@ const Canvas = () => {
   // where setters like setParticipants would be undefined at the time of registration.
 
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [isAiChatOpen, setIsAiChatOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>(MOCK_MESSAGES);
   const [sessionName, setSessionName] = useState("Loading...");
@@ -666,6 +667,15 @@ const Canvas = () => {
       setMessages(prev => {
         // Guard against duplicate DB IDs (shouldn't happen but be safe)
         if (prev.some(m => m.id === msg._id)) return prev;
+
+        // Use a functional timeout to evaluate current isChatOpen state outside of the ref boundary
+        setTimeout(() => {
+          setUnreadChatCount(prevCount => {
+            // We increment unread count if the chat drawer is currently visually closed
+            return !isChatOpen ? prevCount + 1 : 0;
+          });
+        }, 0);
+
         return [...prev, {
           id: msg._id,
           userId: msg.userId || msg.guestId,
@@ -1180,7 +1190,7 @@ const Canvas = () => {
 
 
   return (
-    <div ref={containerRef} className="h-screen flex flex-col overflow-hidden relative" style={{ backgroundColor: canvasBg }}>
+    <div ref={containerRef} className="h-screen flex flex-col overflow-hidden relative touch-none overscroll-none" style={{ backgroundColor: canvasBg }}>
       {isReadOnly && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500/90 text-yellow-950 px-4 py-2 text-center text-sm font-medium">
           <Eye className="w-4 h-4 inline mr-2" />
@@ -1189,8 +1199,8 @@ const Canvas = () => {
         </div>
       )}
 
-      <motion.header className={`absolute top-0 left-0 right-0 p-4 flex items-start justify-between z-40 pointer-events-none ${isReadOnly ? 'mt-10' : ''}`}>
-        <div className="flex items-center gap-4 pointer-events-auto backdrop-blur-md border border-[rgb(95,74,139)] shadow-sm rounded-2xl px-3 py-2" style={{ backgroundColor: 'rgba(95, 74, 139, 0.75)' }}>
+      <motion.header className={`absolute top-0 left-0 right-0 p-2 md:p-4 flex flex-col sm:flex-row items-start justify-between gap-2 z-40 pointer-events-none ${isReadOnly ? 'mt-10' : ''}`}>
+        <div className="flex items-center gap-2 md:gap-4 pointer-events-auto backdrop-blur-md border border-[rgb(95,74,139)] shadow-sm rounded-2xl px-2 md:px-3 py-1.5 md:py-2 w-full sm:w-auto overflow-hidden text-ellipsis whitespace-nowrap" style={{ backgroundColor: 'rgba(95, 74, 139, 0.75)' }}>
           <button onClick={async () => {
             if (meetingId && isAuthenticated && contentRef.current) {
               try {
@@ -1206,25 +1216,25 @@ const Canvas = () => {
             }
             navigate(isAuthenticated ? "/home" : "/");
           }} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden border-2 border-black/20">
+            <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center overflow-hidden border-2 border-black/20 shrink-0">
               <img src={logo} alt="HiveBoard Logo" className="w-full h-full object-cover" />
             </div>
           </button>
-          <div className="h-5 w-px bg-[rgb(245,244,235)]/20" />
-          <div className="flex items-center gap-2">
+          <div className="h-5 w-px bg-[rgb(245,244,235)]/20 shrink-0" />
+          <div className="flex items-center gap-2 shrink-0 truncate max-w-[150px] md:max-w-[300px]">
             {isLoadingMeeting ? (
               <div className="flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-[rgb(245,244,235)]" />
                 <span className="font-display font-semibold text-sm text-[rgb(245,244,235)]">Loading...</span>
               </div>
             ) : (
-              <div className="flex items-center gap-2"><h1 className="font-display font-semibold text-sm select-none text-[rgb(255,212,29)]">{sessionName}</h1>{isLocked && <Lock className="w-3 h-3 text-[rgb(245,244,235)]" />}</div>
+              <div className="flex items-center gap-2 truncate"><h1 className="font-display font-semibold text-sm select-none text-[rgb(255,212,29)] truncate">{sessionName}</h1>{isLocked && <Lock className="w-3 h-3 text-[rgb(245,244,235)] shrink-0" />}</div>
             )}
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-2">
-          <div className="flex items-center gap-1 pointer-events-auto backdrop-blur-md border border-[rgb(95,74,139)] shadow-sm rounded-2xl px-2 py-1.5" style={{ backgroundColor: 'rgba(95, 74, 139, 0.75)' }}>
+        <div className="flex flex-col items-end gap-2 w-full md:w-auto">
+          <div className="flex items-center gap-1 pointer-events-auto backdrop-blur-md border border-[rgb(95,74,139)] shadow-sm rounded-2xl px-2 py-1.5 flex-wrap justify-end" style={{ backgroundColor: 'rgba(95, 74, 139, 0.75)' }}>
             {/* Zoom Controls moved here */}
             <div className="flex items-center gap-1 border-r border-white/20 pr-2 mr-1">
               <button
@@ -1375,14 +1385,21 @@ const Canvas = () => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {!isAuthenticated && <Button variant="elegant" size="sm" className="h-8 text-xs ml-2" asChild><Link to="/auth" state={{ from: location }}><LogIn className="w-3 h-3 mr-1.5" /> Sign In</Link></Button>}
+            {!isAuthenticated && (
+              <Button variant="elegant" size="sm" className="h-8 text-xs ml-2 px-2 sm:px-3" asChild>
+                <Link to="/auth" state={{ from: location }}>
+                  <LogIn className="w-3 h-3 sm:mr-1.5" />
+                  <span className="hidden sm:inline">Sign In</span>
+                </Link>
+              </Button>
+            )}
           </div>
           {/* UserPresence removed/moved from here */}
         </div>
       </motion.header >
 
       {/* Participants / UserPresence Sidebar on the Right */}
-      < div className="fixed right-4 top-24 flex flex-col gap-2 z-40 pointer-events-none" >
+      < div className="fixed right-2 sm:right-4 top-40 sm:top-24 flex flex-col gap-2 z-40 pointer-events-none" >
         <div className="pointer-events-auto backdrop-blur-md border border-[rgb(95,74,139)] shadow-sm rounded-2xl p-1" style={{ backgroundColor: 'rgba(95, 74, 139, 0.75)' }}>
           <UserPresence
             users={participants.map((p, i) => ({ id: p.userId || p.guestId || p.socketId, name: p.name, role: p.isOwner ? 'owner' : (p.userId ? 'editor' : 'viewer'), color: PRESENCE_COLORS[i % PRESENCE_COLORS.length], isOnline: true }))}
@@ -1395,6 +1412,13 @@ const Canvas = () => {
       </div >
 
       <div ref={contentRef} className="flex-1 relative overflow-hidden bg-canvas-bg"
+        style={{
+          cursor: tool === 'brush' ? 'crosshair' :
+            tool === 'text' ? 'text' :
+              tool === 'fill' ? `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z"/><path d="m5 2 5 5"/><path d="M2 13h15"/><path d="M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.4 2-4 .3 1.6 2 2.4 2 4Z"/></svg>') 0 24, auto` :
+                tool === 'eraser' ? `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>') 0 24, auto` :
+                  'default'
+        }}
         onMouseDown={handleCanvasMouseDown}
         onMouseMove={handleCanvasMouseMove}
         onMouseUp={handleCanvasMouseUp}
@@ -1576,7 +1600,7 @@ const Canvas = () => {
         onAddCroquis={handleAddCroquis}
       />
       <ParticipantsList participants={participants} currentUserId={user?._id} currentGuestId={guestUser?.guestId} isOpen={isParticipantsListOpen} onClose={() => setIsParticipantsListOpen(false)} />
-      <ChatPanel messages={messages} users={participants.map((p, i) => ({ id: p.userId || p.guestId || p.socketId, name: p.name, role: p.isOwner ? 'owner' : (p.userId ? 'editor' : 'viewer'), color: PRESENCE_COLORS[i % PRESENCE_COLORS.length], isOnline: true }))} currentUserId={user?._id || guestUser?.guestId || ''} onSendMessage={handleSendMessage} isOpen={isChatOpen} onToggle={() => { setIsChatOpen(!isChatOpen); if (!isChatOpen) setIsAiChatOpen(false); }} />
+      <ChatPanel unreadCount={unreadChatCount} messages={messages} users={participants.map((p, i) => ({ id: p.userId || p.guestId || p.socketId, name: p.name, role: p.isOwner ? 'owner' : (p.userId ? 'editor' : 'viewer'), color: PRESENCE_COLORS[i % PRESENCE_COLORS.length], isOnline: true }))} currentUserId={user?._id || guestUser?.guestId || ''} onSendMessage={handleSendMessage} isOpen={isChatOpen} onToggle={() => { setIsChatOpen(!isChatOpen); if (!isChatOpen) { setIsAiChatOpen(false); setUnreadChatCount(0); } }} />
       <AiChatPanel isOpen={isAiChatOpen} onToggle={() => { setIsAiChatOpen(!isAiChatOpen); if (!isAiChatOpen) setIsChatOpen(false); }} stickyNotes={stickyNotes} textItems={textItems} />
 
 

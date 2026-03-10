@@ -12,6 +12,7 @@ interface ChatPanelProps {
   onSendMessage: (content: string) => void;
   isOpen: boolean;
   onToggle: () => void;
+  unreadCount: number;
 }
 
 /**
@@ -30,6 +31,7 @@ const ChatPanel = ({
   onSendMessage,
   isOpen,
   onToggle,
+  unreadCount,
 }: ChatPanelProps) => {
   const [inputValue, setInputValue] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -60,16 +62,16 @@ const ChatPanel = ({
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.3 }}
         onClick={onToggle}
-        className="fixed bottom-6 right-24 w-14 h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-elevated hover:shadow-glow transition-all hover:scale-105 z-40"
+        className="fixed bottom-24 md:bottom-6 right-20 md:right-24 w-12 h-12 md:w-14 md:h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-elevated hover:shadow-glow transition-all hover:scale-105 z-40"
       >
         {isOpen ? (
           <X className="w-5 h-5" />
         ) : (
           <>
             <MessageCircle className="w-5 h-5" />
-            {messages.length > 0 && (
+            {unreadCount > 0 && (
               <span className="absolute -top-1 -right-1 w-5 h-5 bg-accent text-accent-foreground text-xs font-medium rounded-full flex items-center justify-center">
-                {messages.length > 9 ? '9+' : messages.length}
+                {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
           </>

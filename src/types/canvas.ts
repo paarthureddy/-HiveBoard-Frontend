@@ -14,6 +14,7 @@ export interface Stroke {
   rotation?: number; // radians
   center?: Point; // Pivot for rotation
   isFill?: boolean; // If true, points define a filled polygon
+  isEraser?: boolean; // If true, cuts through canvas elements
 }
 
 export interface User {

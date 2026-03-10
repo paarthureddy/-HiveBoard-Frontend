@@ -592,7 +592,7 @@ const Toolbar = ({
       items={items}
       orientation="vertical"
       desktopClassName="fixed left-4 top-[55%] -translate-y-1/2 z-40"
-      mobileClassName="fixed left-4 top-[55%] -translate-y-1/2 z-40"
+      mobileClassName=""
     />
   );
 };
