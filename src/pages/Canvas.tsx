@@ -188,9 +188,9 @@ const Canvas = () => {
       // Broadcast stroke
       sendStroke({ meetingId: meetingId || undefined, stroke });
     },
-    onDrawPoint: (point, strokeId, color, width) => {
+    onDrawPoint: (point, strokeId, color, width, isEraser) => {
       // Broadcast point
-      sendPoint({ meetingId: meetingId || undefined, point, strokeId, color, width });
+      sendPoint({ meetingId: meetingId || undefined, point, strokeId, color, width, isEraser });
     },
     onClear: () => {
       sendClearCanvas({ meetingId: meetingId || undefined });
@@ -834,7 +834,7 @@ const Canvas = () => {
     },
     onCanvasUpdated: (data) => { console.log('Canvas updated', data); },
     onStrokeDrawn: (data) => drawRemoteStroke(data.stroke),
-    onPointDrawn: (data) => drawRemotePoint(data.point, data.strokeId, data.color, data.width),
+    onPointDrawn: (data) => drawRemotePoint(data.point, data.strokeId, data.color, data.width, data.isEraser),
     onCanvasCleared: () => {
       clearCanvasRemote();
       setStickyNotes([]);

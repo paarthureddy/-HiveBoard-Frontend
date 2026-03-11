@@ -1,0 +1,30 @@
+[36mvite v7.3.1 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32m✓[39m 96 modules transformed.
+Browserslist: browsers data (caniuse-lite) is 9 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+[31m✗[39m Build failed in 1.27s
+[31merror during build:
+[31m[vite:esbuild] Transform failed with 1 error:
+C:/Users/Lenovo/Desktop/HiveBoard-Frontend/src/components/canvas/AiChatPanel.tsx:40:30: ERROR: Expected "}" but found "m"[31m
+file: [36mC:/Users/Lenovo/Desktop/HiveBoard-Frontend/src/components/canvas/AiChatPanel.tsx:40:30[31m
+[33m
+[33mExpected "}" but found "m"[33m
+38 |      userId: 'ai',
+39 |      userName: BOT_NAME,
+40 |      content: '🧠 Hello! I\\'m ** HiveMind **, your collaborative AI partner!\\n\\nI can help you with: \\n - ** Brain...
+   |                                ^
+41 |      timestamp: new Date()
+42 |  };
+[31m
+    at failureErrorWithLog (C:\Users\Lenovo\Desktop\HiveBoard-Frontend\node_modules\esbuild\lib\main.js:1467:15)
+    at C:\Users\Lenovo\Desktop\HiveBoard-Frontend\node_modules\esbuild\lib\main.js:736:50
+    at responseCallbacks.<computed> (C:\Users\Lenovo\Desktop\HiveBoard-Frontend\node_modules\esbuild\lib\main.js:603:9)
+    at handleIncomingPacket (C:\Users\Lenovo\Desktop\HiveBoard-Frontend\node_modules\esbuild\lib\main.js:658:12)
+    at Socket.readFromStdout (C:\Users\Lenovo\Desktop\HiveBoard-Frontend\node_modules\esbuild\lib\main.js:581:7)
+    at Socket.emit (node:events:518:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)[39m

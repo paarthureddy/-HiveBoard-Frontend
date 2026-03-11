@@ -118,6 +118,7 @@ export const sendPoint = (data: {
     strokeId: string;
     color: string;
     width: number;
+    isEraser?: boolean;
 }): void => {
     const socket = getSocket();
     socket.emit('draw-point', data);
