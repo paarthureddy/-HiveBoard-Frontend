@@ -2,15 +2,44 @@ import { io, Socket } from 'socket.io-client';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
-/**
- * Socket.io Client
- * 
- * Singleton module for managing the WebSocket connection.
- * - `getSocket()`: Returns the single shared socket instance (lazy initialization).
- * - `connectSocket()` / `disconnectSocket()`: Lifecycle management.
- * - Exported functions (e.g., `sendStroke`, `joinRoom`) provide a typed interface
- *   for emitting events to the server.
- */
+const OFFLINE_QUEUE_KEY = 'hiveboard_offline_queue';
+
+const getOfflineQueue = () => {
+    try {
+        const q = localStorage.getItem(OFFLINE_QUEUE_KEY);
+        return q ? JSON.parse(q) : [];
+    } catch {
+        return [];
+    }
+};
+
+const pushToQueue = (event: string, data: any) => {
+    const q = getOfflineQueue();
+    q.push({ event, data });
+    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(q));
+};
+
+export const syncOfflineData = () => {
+    const q = getOfflineQueue();
+    if (q.length === 0) return;
+    const socket = getSocket();
+    if (socket && socket.connected) {
+        q.forEach((item: any) => {
+            socket.emit(item.event, item.data);
+        });
+        localStorage.removeItem(OFFLINE_QUEUE_KEY);
+    }
+};
+
+const emitSafe = (event: string, data: any) => {
+    const socket = getSocket();
+    if (navigator.onLine && socket && socket.connected) {
+        socket.emit(event, data);
+    } else {
+        pushToQueue(event, data);
+    }
+};
+
 let socket: Socket | null = null;
 
 export const getSocket = (): Socket => {
@@ -30,6 +59,7 @@ export const getSocket = (): Socket => {
         // Connection event listeners
         socket.on('connect', () => {
             console.log('✅ Socket connected:', socket?.id);
+            syncOfflineData();
         });
 
         socket.on('disconnect', (reason) => {
@@ -95,8 +125,7 @@ export const sendCanvasUpdate = (data: {
     meetingId?: string;
     canvasData?: any;
 }): void => {
-    const socket = getSocket();
-    socket.emit('canvas-update', data);
+    emitSafe('canvas-update', data);
 };
 
 export const sendCursorMove = (position: { x: number; y: number }): void => {
@@ -108,8 +137,7 @@ export const sendStroke = (data: {
     meetingId?: string;
     stroke: any;
 }): void => {
-    const socket = getSocket();
-    socket.emit('draw-stroke', data);
+    emitSafe('draw-stroke', data);
 };
 
 export const sendPoint = (data: {
@@ -120,33 +148,27 @@ export const sendPoint = (data: {
     width: number;
     isEraser?: boolean;
 }): void => {
-    const socket = getSocket();
-    socket.emit('draw-point', data);
+    emitSafe('draw-point', data);
 };
 
 export const sendClearCanvas = (data: { meetingId?: string }): void => {
-    const socket = getSocket();
-    socket.emit('clear-canvas', data);
+    emitSafe('clear-canvas', data);
 };
 
 export const sendUndo = (data: { meetingId?: string }): void => {
-    const socket = getSocket();
-    socket.emit('undo-stroke', data);
+    emitSafe('undo-stroke', data);
 };
 
 export const sendAddCroquis = (data: { meetingId?: string; item: any; }): void => {
-    const socket = getSocket();
-    socket.emit('add-croquis', data);
+    emitSafe('add-croquis', data);
 };
 
 export const sendUpdateCroquis = (data: { meetingId?: string; id: string; updates: any; }): void => {
-    const socket = getSocket();
-    socket.emit('update-croquis', data);
+    emitSafe('update-croquis', data);
 };
 
 export const sendDeleteCroquis = (data: { meetingId?: string; id: string; }): void => {
-    const socket = getSocket();
-    socket.emit('delete-croquis', data);
+    emitSafe('delete-croquis', data);
 };
 
 export const sendMessage = (data: {
@@ -157,49 +179,40 @@ export const sendMessage = (data: {
     content: string;
 }): void => {
     console.log('📤 Sending message:', data);
-    const socket = getSocket();
-    socket.emit('send-message', data);
+    emitSafe('send-message', data);
 };
 
 
 export const sendAddSticky = (data: { meetingId?: string; note: any; }): void => {
-    const socket = getSocket();
-    socket.emit('add-sticky', data);
+    emitSafe('add-sticky', data);
 };
 
 export const sendUpdateSticky = (data: { meetingId?: string; id: string; updates: any; }): void => {
-    const socket = getSocket();
-    socket.emit('update-sticky', data);
+    emitSafe('update-sticky', data);
 };
 
 export const sendDeleteSticky = (data: { meetingId?: string; id: string; }): void => {
-    const socket = getSocket();
-    socket.emit('delete-sticky', data);
+    emitSafe('delete-sticky', data);
 };
 
 export const sendAddText = (data: { meetingId?: string; item: any; }): void => {
-    const socket = getSocket();
-    socket.emit('add-text', data);
+    emitSafe('add-text', data);
 };
 
 export const sendUpdateText = (data: { meetingId?: string; id: string; updates: any; }): void => {
-    const socket = getSocket();
-    socket.emit('update-text', data);
+    emitSafe('update-text', data);
 };
 
 export const sendDeleteText = (data: { meetingId?: string; id: string; }): void => {
-    const socket = getSocket();
-    socket.emit('delete-text', data);
+    emitSafe('delete-text', data);
 };
 
 export const sendUpdateStroke = (data: { meetingId?: string; id: string; updates: any; }): void => {
-    const socket = getSocket();
-    socket.emit('update-stroke', data);
+    emitSafe('update-stroke', data);
 };
 
 export const sendDeleteStroke = (data: { meetingId?: string; id: string; }): void => {
-    const socket = getSocket();
-    socket.emit('delete-stroke', data);
+    emitSafe('delete-stroke', data);
 };
 
 export const requestCanvasState = (data: { meetingId: string }): void => {
@@ -208,8 +221,7 @@ export const requestCanvasState = (data: { meetingId: string }): void => {
 };
 
 export const sendCanvasBackground = (data: { meetingId?: string; color: string }): void => {
-    const socket = getSocket();
-    socket.emit('set-canvas-background', data);
+    emitSafe('set-canvas-background', data);
 };
 
 export default {
