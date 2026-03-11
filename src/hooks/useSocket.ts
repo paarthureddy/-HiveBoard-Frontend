@@ -11,7 +11,7 @@ interface UseSocketOptions {
     onCanvasUpdated?: (data: { userId?: string; guestId?: string; data: any }) => void;
     onCursorMoved?: (data: { socketId: string; userId?: string; guestId?: string; position: { x: number; y: number } }) => void;
     onStrokeDrawn?: (data: { userId?: string; guestId?: string; stroke: any }) => void;
-    onPointDrawn?: (data: { userId?: string; guestId?: string; point: { x: number; y: number }; strokeId: string; color: string; width: number }) => void;
+    onPointDrawn?: (data: { userId?: string; guestId?: string; point: { x: number; y: number }; strokeId: string; color: string; width: number; isEraser?: boolean }) => void;
     onCanvasCleared?: (data: { userId?: string; guestId?: string }) => void;
     onStrokeUndone?: (data: { userId?: string; guestId?: string }) => void;
     onCanvasState?: (data: { strokes: any[]; croquis: any[]; stickyNotes?: any[]; textItems?: any[]; backgroundColor?: string; }) => void;
