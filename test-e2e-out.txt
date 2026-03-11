@@ -1,0 +1,14 @@
+﻿
+    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/auth
+    Error: page.goto: net::ERR_CONNECTION_REFUSED at 
+http://localhost:5173/join/this_is_a_fake_token_that_does_not_exist
+    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/home
+    Error: page.goto: NS_ERROR_CONNECTION_REFUSED
+    Error: page.goto: Could not connect to server
+    Error: page.goto: NS_ERROR_CONNECTION_REFUSED
+    Error: page.goto: Could not connect to server
+    Error: page.goto: NS_ERROR_CONNECTION_REFUSED
+    Error: page.goto: Could not connect to server
+[1A[2K  9 failed
+
+

@@ -9,7 +9,7 @@ import { useCanvas } from "@/hooks/useCanvas";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGuest } from "@/contexts/GuestContext";
 import { useSocket } from "@/hooks/useSocket";
-import { joinRoom, leaveRoom, sendStroke, sendPoint, sendClearCanvas, sendUndo, requestCanvasState, sendMessage, sendCanvasBackground, sendAddCroquis, sendUpdateCroquis, sendDeleteCroquis, sendAddSticky, sendUpdateSticky, sendDeleteSticky, sendAddText, sendUpdateText, sendDeleteText, sendUpdateStroke, sendDeleteStroke } from "@/lib/socket";
+import { joinRoom, leaveRoom, sendStroke, sendPoint, sendClearCanvas, sendUndo, requestCanvasState, sendMessage, sendCanvasBackground, sendAddCroquis, sendUpdateCroquis, sendDeleteCroquis, sendAddSticky, sendUpdateSticky, sendDeleteSticky, sendAddText, sendUpdateText, sendDeleteText, sendUpdateStroke, sendDeleteStroke, syncOfflineData } from "@/lib/socket";
 import { meetingsAPI } from "@/lib/api";
 import Toolbar from "@/components/canvas/Toolbar";
 import ChatPanel from "@/components/canvas/ChatPanel";
@@ -184,9 +184,9 @@ const Canvas = () => {
       // Broadcast stroke
       sendStroke({ meetingId: meetingId || undefined, stroke });
     },
-    onDrawPoint: (point, strokeId, color, width) => {
+    onDrawPoint: (point, strokeId, color, width, isEraser) => {
       // Broadcast point
-      sendPoint({ meetingId: meetingId || undefined, point, strokeId, color, width });
+      sendPoint({ meetingId: meetingId || undefined, point, strokeId, color, width, isEraser });
     },
     onClear: () => {
       sendClearCanvas({ meetingId: meetingId || undefined });
@@ -227,6 +227,130 @@ const Canvas = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [isParticipantsListOpen, setIsParticipantsListOpen] = useState(false);
 
+<<<<<<< HEAD
+=======
+  // --- Network State ---
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      syncOfflineData();
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // --- Context Menu State ---
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
+
+  useEffect(() => {
+    const dismissMenu = () => setContextMenu(null);
+    window.addEventListener('click', dismissMenu);
+    return () => window.removeEventListener('click', dismissMenu);
+  }, []);
+
+  const handleCopy = () => {
+    if (!selectedObject) return;
+    let itemToCopy = null;
+    if (selectedObject.type === 'sticky') itemToCopy = stickyNotes.find(s => s.id === selectedObject.id);
+    else if (selectedObject.type === 'text') itemToCopy = textItems.find(t => t.id === selectedObject.id);
+    else if (selectedObject.type === 'croquis') itemToCopy = croquisItems.find(c => c.id === selectedObject.id);
+    else if (selectedObject.type === 'stroke') itemToCopy = strokes.find(s => s.id === selectedObject.id);
+
+    if (itemToCopy) {
+      setClipboard({ type: selectedObject.type, item: itemToCopy });
+      toast({ title: 'Copied', description: 'Item copied to clipboard.', duration: 1500 });
+    }
+  };
+
+  const handlePasteRaw = (specificClipboard?: { type: string, item: any }) => {
+    const cb = specificClipboard || clipboard;
+    if (!cb) return;
+
+    const newId = crypto.randomUUID();
+    const offset = 20;
+
+    if (cb.type === 'sticky') {
+      const newItem = { ...cb.item, id: newId, x: cb.item.x + offset, y: cb.item.y + offset };
+      setStickyNotes(prev => [...prev, newItem]);
+      sendAddSticky({ meetingId: meetingId || undefined, note: newItem });
+      setSelectedObject({ id: newId, type: 'sticky' });
+    } else if (cb.type === 'text') {
+      const newItem = { ...cb.item, id: newId, x: cb.item.x + offset, y: cb.item.y + offset };
+      setTextItems(prev => [...prev, newItem]);
+      sendAddText({ meetingId: meetingId || undefined, item: newItem });
+      setSelectedObject({ id: newId, type: 'text' });
+    } else if (cb.type === 'croquis') {
+      const newItem = { ...cb.item, id: newId, x: cb.item.x + offset, y: cb.item.y + offset };
+      setCroquisItems(prev => [...prev, newItem]);
+      sendAddCroquis({ meetingId: meetingId || undefined, item: newItem });
+      setSelectedObject({ id: newId, type: 'croquis' });
+    } else if (cb.type === 'stroke') {
+      const newPoints = cb.item.points.map((p: any) => ({ ...p, x: p.x + offset, y: p.y + offset }));
+      const newItem = { ...cb.item, id: newId, points: newPoints };
+      setStrokes((prev: any) => [...prev, newItem]);
+      sendStroke({ meetingId: meetingId || undefined, stroke: newItem });
+      setSelectedObject({ id: newId, type: 'stroke' });
+    }
+    if (!specificClipboard) {
+      toast({ title: 'Pasted', description: 'Item pasted onto canvas.', duration: 1500 });
+    }
+  };
+
+  const handleDuplicate = () => {
+    if (!selectedObject) return;
+    let itemToCopy = null;
+    if (selectedObject.type === 'sticky') itemToCopy = stickyNotes.find(s => s.id === selectedObject.id);
+    else if (selectedObject.type === 'text') itemToCopy = textItems.find(t => t.id === selectedObject.id);
+    else if (selectedObject.type === 'croquis') itemToCopy = croquisItems.find(c => c.id === selectedObject.id);
+    else if (selectedObject.type === 'stroke') itemToCopy = strokes.find(s => s.id === selectedObject.id);
+
+    if (itemToCopy) {
+      handlePasteRaw({ type: selectedObject.type, item: itemToCopy });
+    }
+  };
+
+  const handleZIndexChange = (delta: number) => {
+    if (!selectedObject) return;
+    const { id, type } = selectedObject;
+    let currentZ = 0;
+
+    if (type === 'sticky') {
+      const item = stickyNotes.find(x => x.id === id);
+      currentZ = item?.zIndex || 0;
+      const updates = { zIndex: currentZ + delta };
+      setStickyNotes(prev => prev.map(x => x.id === id ? { ...x, ...updates } : x));
+      sendUpdateSticky({ meetingId: meetingId || undefined, id, updates });
+    } else if (type === 'text') {
+      const item = textItems.find(x => x.id === id);
+      currentZ = item?.zIndex || 0;
+      const updates = { zIndex: currentZ + delta };
+      setTextItems(prev => prev.map(x => x.id === id ? { ...x, ...updates } : x));
+      sendUpdateText({ meetingId: meetingId || undefined, id, updates });
+    } else if (type === 'croquis') {
+      const item = croquisItems.find(x => x.id === id);
+      currentZ = item?.zIndex || 0;
+      const updates = { zIndex: currentZ + delta };
+      updateCroquis(id, updates);
+    } else if (type === 'stroke') {
+      const item = strokes.find(x => x.id === id);
+      currentZ = item?.zIndex || 0;
+      const updates = { zIndex: currentZ + delta };
+      updateStroke(id, updates);
+      sendUpdateStroke({ meetingId: meetingId || undefined, id, updates });
+    }
+  };
+
+
+>>>>>>> 0d78dd64195fc48a9587be8f035a21af94919f12
   // --- Keyboard Shortcuts (Copy / Paste / Delete) ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -743,7 +867,7 @@ const Canvas = () => {
     },
     onCanvasUpdated: (data) => { console.log('Canvas updated', data); },
     onStrokeDrawn: (data) => drawRemoteStroke(data.stroke),
-    onPointDrawn: (data) => drawRemotePoint(data.point, data.strokeId, data.color, data.width),
+    onPointDrawn: (data) => drawRemotePoint(data.point, data.strokeId, data.color, data.width, data.isEraser),
     onCanvasCleared: () => {
       clearCanvasRemote();
       setStickyNotes([]);
@@ -1732,9 +1856,13 @@ const Canvas = () => {
       <ChatPanel unreadCount={unreadChatCount} messages={messages} users={participants.map((p, i) => ({ id: p.userId || p.guestId || p.socketId, name: p.name, role: p.isOwner ? 'owner' : (p.userId ? 'editor' : 'viewer'), color: PRESENCE_COLORS[i % PRESENCE_COLORS.length], isOnline: true }))} currentUserId={user?._id || guestUser?.guestId || ''} onSendMessage={handleSendMessage} isOpen={isChatOpen} onToggle={() => { setIsChatOpen(!isChatOpen); if (!isChatOpen) { setIsAiChatOpen(false); setUnreadChatCount(0); } }} />
       <AiChatPanel isOpen={isAiChatOpen} onToggle={() => { setIsAiChatOpen(!isAiChatOpen); if (!isAiChatOpen) setIsChatOpen(false); }} stickyNotes={stickyNotes} textItems={textItems} />
 
-
-
-
+      {/* Network Status Widget */}
+      <div className="fixed bottom-[106px] md:bottom-[38px] right-[140px] md:right-[164px] flex items-center bg-card border border-border rounded-full px-3 py-1.5 shadow-md z-50 pointer-events-none transition-all duration-300">
+        <div className={`w-2.5 h-2.5 rounded-full mr-2 ${isOnline ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'}`} />
+        <span className="text-xs font-semibold text-foreground tracking-wide uppercase">
+          {isOnline ? 'Online' : 'Offline'}
+        </span>
+      </div>
       <LoginPromptModal isOpen={showLoginPrompt} onClose={() => setShowLoginPrompt(false)} onSuccess={() => { setShowLoginPrompt(false); window.location.reload(); }} />
       <ConfirmationModal
         isOpen={showResetConfirm}

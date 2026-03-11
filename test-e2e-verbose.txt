@@ -1,0 +1,60 @@
+﻿
+Running 3 tests using 3 workers
+
+  Γ£ÿ  1 [chromium] ΓÇ║ tests\e2e.spec.ts:49:3 ΓÇ║ HiveBoard Final E2E Tests ΓÇ║ Join Session: Should show error for invalid invite token (3.9s)
+  Γ£ÿ  2 [chromium] ΓÇ║ tests\e2e.spec.ts:6:3 ΓÇ║ HiveBoard Final E2E Tests ΓÇ║ Auth Page: Should display Sign In button and Register tab (4.0s)
+  Γ£ÿ  3 [chromium] ΓÇ║ tests\e2e.spec.ts:28:3 ΓÇ║ HiveBoard Final E2E Tests ΓÇ║ Dashboard (Home): Should display Create New Meeting button (4.0s)
+
+
+  1) [chromium] ΓÇ║ tests\e2e.spec.ts:6:3 ΓÇ║ HiveBoard Final E2E Tests ΓÇ║ Auth Page: Should display Sign In button and Register tab 
+
+    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/auth
+    Call log:
+    [2m  - navigating to "http://localhost:5173/auth", waiting until "load"[22m
+
+
+       6 |   test('Auth Page: Should display Sign In button and Register tab', async ({ page }) => {
+       7 |     // Go to the auth page (login page)
+    >  8 |     await page.goto('http://localhost:5173/auth');
+         |                ^
+       9 |
+      10 |     // The "Login" tab should be visible
+      11 |     const loginTab = page.getByRole('tab', { name: 'Login' });
+        at C:\Users\KINGPRATYUSH\OneDrive\Desktop\HiveBoard\frontend\tests\e2e.spec.ts:8:16
+
+  2) [chromium] ΓÇ║ tests\e2e.spec.ts:28:3 ΓÇ║ HiveBoard Final E2E Tests ΓÇ║ Dashboard (Home): Should display Create New Meeting button 
+
+    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/home
+    Call log:
+    [2m  - navigating to "http://localhost:5173/home", waiting until "load"[22m
+
+
+      30 |     // Note: This will likely redirect to /auth if not logged in.
+      31 |     // We are verifying the redirect behavior is correct.
+    > 32 |     await page.goto('http://localhost:5173/home');
+         |                ^
+      33 |
+      34 |     // Either the dashboard loads with Create New Meeting, or we get sent to /auth
+      35 |     const currentUrl = page.url();
+        at C:\Users\KINGPRATYUSH\OneDrive\Desktop\HiveBoard\frontend\tests\e2e.spec.ts:32:16
+
+  3) [chromium] ΓÇ║ tests\e2e.spec.ts:49:3 ΓÇ║ HiveBoard Final E2E Tests ΓÇ║ Join Session: Should show error for invalid invite token 
+
+    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/join/this_is_a_fake_token_that_does_not_exist
+    Call log:
+    [2m  - navigating to "http://localhost:5173/join/this_is_a_fake_token_that_does_not_exist", waiting until "load"[22m
+
+
+      49 |   test('Join Session: Should show error for invalid invite token', async ({ page }) => {
+      50 |     // Visit a join link with a fake, clearly invalid token
+    > 51 |     await page.goto('http://localhost:5173/join/this_is_a_fake_token_that_does_not_exist');
+         |                ^
+      52 |
+      53 |     // Wait for the loading spinner to disappear (API call completes)
+      54 |     await page.waitForSelector('.animate-spin', { state: 'detached', timeout: 10000 }).catch(() => {});
+        at C:\Users\KINGPRATYUSH\OneDrive\Desktop\HiveBoard\frontend\tests\e2e.spec.ts:51:16
+
+  3 failed
+    [chromium] ΓÇ║ tests\e2e.spec.ts:6:3 ΓÇ║ HiveBoard Final E2E Tests ΓÇ║ Auth Page: Should display Sign In button and Register tab 
+    [chromium] ΓÇ║ tests\e2e.spec.ts:28:3 ΓÇ║ HiveBoard Final E2E Tests ΓÇ║ Dashboard (Home): Should display Create New Meeting button 
+    [chromium] ΓÇ║ tests\e2e.spec.ts:49:3 ΓÇ║ HiveBoard Final E2E Tests ΓÇ║ Join Session: Should show error for invalid invite token 

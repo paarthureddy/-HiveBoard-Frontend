@@ -1,0 +1,63 @@
+﻿
+Running 3 tests using 3 workers
+
+[1A[2K[1/3] [chromium] ΓÇ║ tests\e2e.spec.ts:36:3 ΓÇ║ HiveBoard Final E2E Tests ΓÇ║ Join Session: Should show error page for invalid invite token
+[1A[2K[2/3] [chromium] ΓÇ║ tests\e2e.spec.ts:6:3 ΓÇ║ HiveBoard Final E2E Tests ΓÇ║ Auth Page: Should load and display Login and Register tabs
+[1A[2K[3/3] [chromium] ΓÇ║ tests\e2e.spec.ts:23:3 ΓÇ║ HiveBoard Final E2E Tests ΓÇ║ Landing Page: Should load the main landing page
+[1A[2K  1) [chromium] ΓÇ║ tests\e2e.spec.ts:36:3 ΓÇ║ HiveBoard Final E2E Tests ΓÇ║ Join Session: Should show error page for invalid invite token 
+
+    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/join/totally_fake_invalid_token_xyz
+    Call log:
+    [2m  - navigating to "http://localhost:5173/join/totally_fake_invalid_token_xyz", waiting until "load"[22m
+
+
+      35 |   // Test 3: Join Session with invalid link shows error
+      36 |   test('Join Session: Should show error page for invalid invite token', async ({ page }) => {
+    > 37 |     await page.goto('http://localhost:5173/join/totally_fake_invalid_token_xyz');
+         |                ^
+      38 |     await page.waitForLoadState('networkidle');
+      39 |
+      40 |     // Wait up to 10 seconds for the loading spinner to go away
+        at C:\Users\KINGPRATYUSH\OneDrive\Desktop\HiveBoard\frontend\tests\e2e.spec.ts:37:16
+
+
+[1A[2K  2) [chromium] ΓÇ║ tests\e2e.spec.ts:6:3 ΓÇ║ HiveBoard Final E2E Tests ΓÇ║ Auth Page: Should load and display Login and Register tabs 
+
+    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/auth
+    Call log:
+    [2m  - navigating to "http://localhost:5173/auth", waiting until "load"[22m
+
+
+       5 |   // Test 1: Auth Page - check page loads and has correct title/tab structure
+       6 |   test('Auth Page: Should load and display Login and Register tabs', async ({ page }) => {
+    >  7 |     await page.goto('http://localhost:5173/auth');
+         |                ^
+       8 |     
+       9 |     // Wait for the page to fully load
+      10 |     await page.waitForLoadState('networkidle');
+        at C:\Users\KINGPRATYUSH\OneDrive\Desktop\HiveBoard\frontend\tests\e2e.spec.ts:7:16
+
+
+[1A[2K  3) [chromium] ΓÇ║ tests\e2e.spec.ts:23:3 ΓÇ║ HiveBoard Final E2E Tests ΓÇ║ Landing Page: Should load the main landing page 
+
+    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/
+    Call log:
+    [2m  - navigating to "http://localhost:5173/", waiting until "load"[22m
+
+
+      22 |   // Test 2: Landing page loads correctly
+      23 |   test('Landing Page: Should load the main landing page', async ({ page }) => {
+    > 24 |     await page.goto('http://localhost:5173/');
+         |                ^
+      25 |     await page.waitForLoadState('networkidle');
+      26 |
+      27 |     // Page must respond with a 200 status (it loaded successfully)
+        at C:\Users\KINGPRATYUSH\OneDrive\Desktop\HiveBoard\frontend\tests\e2e.spec.ts:24:16
+
+
+[1A[2K  3 failed
+    [chromium] ΓÇ║ tests\e2e.spec.ts:6:3 ΓÇ║ HiveBoard Final E2E Tests ΓÇ║ Auth Page: Should load and display Login and Register tabs 
+    [chromium] ΓÇ║ tests\e2e.spec.ts:23:3 ΓÇ║ HiveBoard Final E2E Tests ΓÇ║ Landing Page: Should load the main landing page 
+    [chromium] ΓÇ║ tests\e2e.spec.ts:36:3 ΓÇ║ HiveBoard Final E2E Tests ΓÇ║ Join Session: Should show error page for invalid invite token 
+
+[36m  Serving HTML report at http://localhost:9323. Press Ctrl+C to quit.[39m

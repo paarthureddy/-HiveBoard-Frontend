@@ -1,0 +1,61 @@
+﻿
+Running 3 tests using 3 workers
+
+[1A[2K[1/3] [chromium] ΓÇ║ tests\e2e.spec.ts:6:3 ΓÇ║ HiveBoard E2E Tests ΓÇ║ Auth Page: Login and Register tabs are displayed
+[1A[2K[2/3] [chromium] ΓÇ║ tests\e2e.spec.ts:21:3 ΓÇ║ HiveBoard E2E Tests ΓÇ║ Protected Route: Unauthenticated user is redirected to /auth
+[1A[2K[3/3] [chromium] ΓÇ║ tests\e2e.spec.ts:31:3 ΓÇ║ HiveBoard E2E Tests ΓÇ║ Join Session: Invalid invite token shows error UI
+[1A[2K  1) [chromium] ΓÇ║ tests\e2e.spec.ts:31:3 ΓÇ║ HiveBoard E2E Tests ΓÇ║ Join Session: Invalid invite token shows error UI 
+
+    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/join/invalid_fake_token_xyz_123
+    Call log:
+    [2m  - navigating to "http://localhost:5173/join/invalid_fake_token_xyz_123", waiting until "load"[22m
+
+
+      30 |   // Test 3: Join session shows error for invalid token (no backend needed to render error)
+      31 |   test('Join Session: Invalid invite token shows error UI', async ({ page }) => {
+    > 32 |     await page.goto('http://localhost:5173/join/invalid_fake_token_xyz_123');
+         |                ^
+      33 |     await page.waitForLoadState('networkidle');
+      34 |
+      35 |     // Wait for loading spinner to disappear
+        at C:\Users\KINGPRATYUSH\OneDrive\Desktop\HiveBoard\frontend\tests\e2e.spec.ts:32:16
+
+
+[1A[2K  2) [chromium] ΓÇ║ tests\e2e.spec.ts:6:3 ΓÇ║ HiveBoard E2E Tests ΓÇ║ Auth Page: Login and Register tabs are displayed 
+
+    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/auth
+    Call log:
+    [2m  - navigating to "http://localhost:5173/auth", waiting until "load"[22m
+
+
+       5 |   // Test 1: Auth page loads and shows the auth form correctly
+       6 |   test('Auth Page: Login and Register tabs are displayed', async ({ page }) => {
+    >  7 |     const response = await page.goto('http://localhost:5173/auth');
+         |                                 ^
+       8 |     await page.waitForLoadState('domcontentloaded');
+       9 |
+      10 |     // Page must respond with a 200 status
+        at C:\Users\KINGPRATYUSH\OneDrive\Desktop\HiveBoard\frontend\tests\e2e.spec.ts:7:33
+
+
+[1A[2K  3) [chromium] ΓÇ║ tests\e2e.spec.ts:21:3 ΓÇ║ HiveBoard E2E Tests ΓÇ║ Protected Route: Unauthenticated user is redirected to /auth 
+
+    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/home
+    Call log:
+    [2m  - navigating to "http://localhost:5173/home", waiting until "load"[22m
+
+
+      21 |   test('Protected Route: Unauthenticated user is redirected to /auth', async ({ page }) => {
+      22 |     // Try to access the protected home page without logging in
+    > 23 |     await page.goto('http://localhost:5173/home');
+         |                ^
+      24 |     await page.waitForLoadState('networkidle');
+      25 |
+      26 |     // Should be redirected to /auth since we're not logged in
+        at C:\Users\KINGPRATYUSH\OneDrive\Desktop\HiveBoard\frontend\tests\e2e.spec.ts:23:16
+
+
+[1A[2K  3 failed
+    [chromium] ΓÇ║ tests\e2e.spec.ts:6:3 ΓÇ║ HiveBoard E2E Tests ΓÇ║ Auth Page: Login and Register tabs are displayed 
+    [chromium] ΓÇ║ tests\e2e.spec.ts:21:3 ΓÇ║ HiveBoard E2E Tests ΓÇ║ Protected Route: Unauthenticated user is redirected to /auth 
+    [chromium] ΓÇ║ tests\e2e.spec.ts:31:3 ΓÇ║ HiveBoard E2E Tests ΓÇ║ Join Session: Invalid invite token shows error UI 

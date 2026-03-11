@@ -196,42 +196,103 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
 
           if (matchesTarget(nPos)) {
             stack.push(nx, ny);
-          } else {
-            isBoundary = true;
           }
         }
-
-        if (unbounded) {
-          break;
-        }
-
-        if (isBoundary) {
-          boundaryPoints.push({
-            x: ((x / dpr) - offset.x) / scale,
-            y: ((y / dpr) - offset.y) / scale
-          });
-        }
+        if (unbounded) break;
       }
 
       if (unbounded) return;
 
-      // Sort points to form a polygon (Graham Scan / Angular Sort around centroid)
-      if (boundaryPoints.length > 2) {
-        // Calculate Centroid
-        let cx = 0, cy = 0;
-        boundaryPoints.forEach(p => { cx += p.x; cy += p.y; });
-        cx /= boundaryPoints.length;
-        cy /= boundaryPoints.length;
+      // 2. Moore Neighborhood boundary tracing
+      let startX = -1, startY = -1;
+      outer: for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          if (visited[y * w + x]) {
+            startX = x;
+            startY = y;
+            break outer;
+          }
+        }
+      }
 
-        // Sort by angle
-        boundaryPoints.sort((a, b) => {
-          return Math.atan2(a.y - cy, a.x - cx) - Math.atan2(b.y - cy, b.x - cx);
-        });
+      if (startX !== -1) {
+        const OFFSETS = [
+          [-1, -1], [0, -1], [1, -1],
+          [1, 0], [1, 1], [0, 1],
+          [-1, 1], [-1, 0]
+        ];
+
+        let currX = startX;
+        let currY = startY;
+        let backX = startX;
+        let backY = startY - 1;
+
+        const orderedPoints: Point[] = [];
+        let loopCount = 0;
+        const MAX_LOOP = w * h * 2;
+
+        do {
+          orderedPoints.push({
+            x: ((currX / dpr) - offset.x) / scale,
+            y: ((currY / dpr) - offset.y) / scale
+          });
+
+          let dx = Math.sign(backX - currX);
+          let dy = Math.sign(backY - currY);
+          let startIdx = 0;
+          for (let i = 0; i < 8; i++) {
+            if (OFFSETS[i][0] === dx && OFFSETS[i][1] === dy) {
+              startIdx = i; break;
+            }
+          }
+
+          let found = false;
+          let nextX = currX;
+          let nextY = currY;
+          let nextBackX = backX;
+          let nextBackY = backY;
+
+          for (let i = 1; i < 8; i++) {
+            let idx = (startIdx + i) % 8;
+            let nx = currX + OFFSETS[idx][0];
+            let ny = currY + OFFSETS[idx][1];
+
+            if (nx >= 0 && nx < w && ny >= 0 && ny < h && visited[ny * w + nx]) {
+              found = true;
+              nextX = nx;
+              nextY = ny;
+              let emptyIdx = (startIdx + i - 1 + 8) % 8;
+              nextBackX = currX + OFFSETS[emptyIdx][0];
+              nextBackY = currY + OFFSETS[emptyIdx][1];
+              break;
+            }
+          }
+
+          if (!found) break; // Isolated 1-pixel fill
+
+          currX = nextX;
+          currY = nextY;
+          backX = nextBackX;
+          backY = nextBackY;
+
+          loopCount++;
+          if (loopCount > MAX_LOOP) break;
+          // Stop when we return to the start from the same entry direction
+          if (currX === startX && currY === startY && backX === startX && backY === startY - 1) break;
+
+        } while (true);
+
+        // Simplify path: downsample to reduce payload size
+        const simplifiedPoints: Point[] = [];
+        const step = Math.max(1, Math.floor(orderedPoints.length / 800));
+        for (let i = 0; i < orderedPoints.length; i += step) {
+          simplifiedPoints.push(orderedPoints[i]);
+        }
 
         // Create Fill Stroke
         const newStroke: Stroke = {
           id: crypto.randomUUID(),
-          points: boundaryPoints, // Downsample if needed
+          points: simplifiedPoints,
           color: fillColor,
           width: 0,
           userId: 'current-user',
@@ -248,28 +309,14 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
     const point = getCanvasPoint(e);
     if (!point) return;
 
-    if (tool === 'eraser') {
-      setIsDrawing(true);
-      // Vector Erasing logic
-      const eraseRadius = brushWidth * 5;
-      setStrokes(prev => {
-        const keeps = prev.filter(stroke => {
-          const hit = stroke.points.some(p => Math.hypot(p.x - point.x, p.y - point.y) < eraseRadius);
-          if (hit && onDeleteStroke) onDeleteStroke(stroke.id);
-          return !hit;
-        });
-        if (keeps.length !== prev.length) requestRedrawRef.current();
-        return keeps;
-      });
-      return;
-    }
+
 
     setIsDrawing(true);
     currentStrokeIdRef.current = crypto.randomUUID();
     setCurrentStroke([point]);
 
     if (onDrawPoint) {
-      onDrawPoint(point, currentStrokeIdRef.current, brushColor, brushWidth, false);
+      onDrawPoint(point, currentStrokeIdRef.current, brushColor, brushWidth, tool === 'eraser');
     }
     requestRedrawRef.current();
   }, [getCanvasPoint, onDrawPoint, tool, brushColor, brushWidth, strokes, onDeleteStroke]);
@@ -281,38 +328,21 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
     const point = getCanvasPoint(e);
     if (!point) return;
 
-    if (tool === 'eraser') {
-      const eraseRadius = brushWidth * 5;
-      setStrokes(prev => {
-        const keeps = prev.filter(stroke => {
-          const hit = stroke.points.some(p => Math.hypot(p.x - point.x, p.y - point.y) < eraseRadius);
-          if (hit && onDeleteStroke) onDeleteStroke(stroke.id);
-          return !hit;
-        });
-        if (keeps.length !== prev.length) requestRedrawRef.current();
-        return keeps;
-      });
-      return;
-    }
+
 
     setCurrentStroke(prev => {
-      // Small optimization: don't add duplicate points if very close?
-      // For now, raw input is fine.
       return [...prev, point];
     });
 
     if (onDrawPoint) {
-      onDrawPoint(point, currentStrokeIdRef.current, brushColor, brushWidth, false);
+      onDrawPoint(point, currentStrokeIdRef.current, brushColor, brushWidth, tool === 'eraser');
     }
     requestRedrawRef.current();
   }, [isDrawing, getCanvasPoint, onDrawPoint, tool, brushColor, brushWidth, onDeleteStroke]);
 
   const stopDrawing = useCallback(() => {
     if (!isDrawing) return;
-    if (tool === 'eraser') {
-      setIsDrawing(false);
-      return;
-    }
+
 
     if (currentStroke.length === 0) return;
     // If Sticky tool, Text tool, or Select tool is active, don't draw strokes.
@@ -324,7 +354,7 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
       color: brushColor,
       width: brushWidth,
       userId: 'current-user',
-      isEraser: false,
+      isEraser: tool === 'eraser',
     };
 
     setStrokes(prev => [...prev, newStroke]);
@@ -419,11 +449,9 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
 
       ctx.beginPath();
 
-      // Vector eraser has completely replaced Raster eraser, so we 
-      // ALWAYS use source-over for standard drawing.
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = color;
-      ctx.fillStyle = color;
+      ctx.globalCompositeOperation = stroke.isEraser ? 'destination-out' : 'source-over';
+      ctx.strokeStyle = stroke.isEraser ? 'rgba(0,0,0,1)' : color;
+      ctx.fillStyle = stroke.isEraser ? 'rgba(0,0,0,1)' : color;
 
       if (isFill) {
         if (points.length > 2) {
@@ -469,30 +497,36 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
     ctx.setLineDash([]);
     ctx.restore();
 
+<<<<<<< HEAD
     // Draw Strokes (Purging any legacy raster eraser strokes so they don't look like white lines)
     strokes.forEach(s => {
       if (s.isEraser || (s.color || '').toUpperCase() === '#F8F6F3') return;
       paintStroke(s);
     });
+=======
+    // Draw Strokes
+    const validStrokes = [...strokes];
+    validStrokes.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+    validStrokes.forEach(s => paintStroke(s));
+
+    // Remote strokes rendering
+>>>>>>> 0d78dd64195fc48a9587be8f035a21af94919f12
     remoteLivedStrokes.forEach(s => {
-      if ((s.color || '').toUpperCase() === '#F8F6F3') return;
       paintStroke({ ...s, id: 'remote', userId: 'remote' } as Stroke);
     });
 
     // Logic for current stroke color
-    if (tool !== 'eraser') {
-      const color = brushColor;
-      const width = brushWidth;
-      // Temporary stroke object for rendering
-      paintStroke({
-        id: 'current',
-        userId: 'me',
-        points: currentStroke,
-        color,
-        width,
-        isEraser: false,
-      });
-    }
+    const color = brushColor;
+    const width = brushWidth;
+    // Temporary stroke object for rendering
+    paintStroke({
+      id: 'current',
+      userId: 'me',
+      points: currentStroke,
+      color,
+      width,
+      isEraser: tool === 'eraser',
+    });
     ctx.restore();
 
 
@@ -569,10 +603,16 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
   }, [onClear]);
 
   const undo = useCallback(() => {
+    if (strokes.length === 0) return;
+    const lastStrokeId = strokes[strokes.length - 1].id;
+
     setStrokes(prev => prev.slice(0, -1));
-    if (onUndo) onUndo();
+
+    if (onDeleteStroke) {
+      onDeleteStroke(lastStrokeId);
+    }
     requestRedrawRef.current();
-  }, [onUndo]);
+  }, [strokes, onDeleteStroke]);
 
   const drawRemoteStroke = useCallback((stroke: Stroke) => {
     setStrokes(prev => [...prev, stroke]);
