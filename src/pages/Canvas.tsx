@@ -49,6 +49,10 @@ import {
   Palette,
   ImagePlus,
   ShieldAlert,
+  ClipboardPaste,
+  CopyPlus,
+  SendToBack,
+  BringToFront
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -227,6 +231,108 @@ const Canvas = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [isParticipantsListOpen, setIsParticipantsListOpen] = useState(false);
 
+  // --- Context Menu State ---
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
+
+  useEffect(() => {
+    const dismissMenu = () => setContextMenu(null);
+    window.addEventListener('click', dismissMenu);
+    return () => window.removeEventListener('click', dismissMenu);
+  }, []);
+
+  const handleCopy = () => {
+    if (!selectedObject) return;
+    let itemToCopy = null;
+    if (selectedObject.type === 'sticky') itemToCopy = stickyNotes.find(s => s.id === selectedObject.id);
+    else if (selectedObject.type === 'text') itemToCopy = textItems.find(t => t.id === selectedObject.id);
+    else if (selectedObject.type === 'croquis') itemToCopy = croquisItems.find(c => c.id === selectedObject.id);
+    else if (selectedObject.type === 'stroke') itemToCopy = strokes.find(s => s.id === selectedObject.id);
+
+    if (itemToCopy) {
+      setClipboard({ type: selectedObject.type, item: itemToCopy });
+      toast({ title: 'Copied', description: 'Item copied to clipboard.', duration: 1500 });
+    }
+  };
+
+  const handlePasteRaw = (specificClipboard?: { type: string, item: any }) => {
+    const cb = specificClipboard || clipboard;
+    if (!cb) return;
+
+    const newId = crypto.randomUUID();
+    const offset = 20;
+
+    if (cb.type === 'sticky') {
+      const newItem = { ...cb.item, id: newId, x: cb.item.x + offset, y: cb.item.y + offset };
+      setStickyNotes(prev => [...prev, newItem]);
+      sendAddSticky({ meetingId: meetingId || undefined, note: newItem });
+      setSelectedObject({ id: newId, type: 'sticky' });
+    } else if (cb.type === 'text') {
+      const newItem = { ...cb.item, id: newId, x: cb.item.x + offset, y: cb.item.y + offset };
+      setTextItems(prev => [...prev, newItem]);
+      sendAddText({ meetingId: meetingId || undefined, item: newItem });
+      setSelectedObject({ id: newId, type: 'text' });
+    } else if (cb.type === 'croquis') {
+      const newItem = { ...cb.item, id: newId, x: cb.item.x + offset, y: cb.item.y + offset };
+      setCroquisItems(prev => [...prev, newItem]);
+      sendAddCroquis({ meetingId: meetingId || undefined, item: newItem });
+      setSelectedObject({ id: newId, type: 'croquis' });
+    } else if (cb.type === 'stroke') {
+      const newPoints = cb.item.points.map((p: any) => ({ ...p, x: p.x + offset, y: p.y + offset }));
+      const newItem = { ...cb.item, id: newId, points: newPoints };
+      setStrokes((prev: any) => [...prev, newItem]);
+      sendStroke({ meetingId: meetingId || undefined, stroke: newItem });
+      setSelectedObject({ id: newId, type: 'stroke' });
+    }
+    if (!specificClipboard) {
+      toast({ title: 'Pasted', description: 'Item pasted onto canvas.', duration: 1500 });
+    }
+  };
+
+  const handleDuplicate = () => {
+    if (!selectedObject) return;
+    let itemToCopy = null;
+    if (selectedObject.type === 'sticky') itemToCopy = stickyNotes.find(s => s.id === selectedObject.id);
+    else if (selectedObject.type === 'text') itemToCopy = textItems.find(t => t.id === selectedObject.id);
+    else if (selectedObject.type === 'croquis') itemToCopy = croquisItems.find(c => c.id === selectedObject.id);
+    else if (selectedObject.type === 'stroke') itemToCopy = strokes.find(s => s.id === selectedObject.id);
+
+    if (itemToCopy) {
+      handlePasteRaw({ type: selectedObject.type, item: itemToCopy });
+    }
+  };
+
+  const handleZIndexChange = (delta: number) => {
+    if (!selectedObject) return;
+    const { id, type } = selectedObject;
+    let currentZ = 0;
+
+    if (type === 'sticky') {
+      const item = stickyNotes.find(x => x.id === id);
+      currentZ = item?.zIndex || 0;
+      const updates = { zIndex: currentZ + delta };
+      setStickyNotes(prev => prev.map(x => x.id === id ? { ...x, ...updates } : x));
+      sendUpdateSticky({ meetingId: meetingId || undefined, id, updates });
+    } else if (type === 'text') {
+      const item = textItems.find(x => x.id === id);
+      currentZ = item?.zIndex || 0;
+      const updates = { zIndex: currentZ + delta };
+      setTextItems(prev => prev.map(x => x.id === id ? { ...x, ...updates } : x));
+      sendUpdateText({ meetingId: meetingId || undefined, id, updates });
+    } else if (type === 'croquis') {
+      const item = croquisItems.find(x => x.id === id);
+      currentZ = item?.zIndex || 0;
+      const updates = { zIndex: currentZ + delta };
+      updateCroquis(id, updates);
+    } else if (type === 'stroke') {
+      const item = strokes.find(x => x.id === id);
+      currentZ = item?.zIndex || 0;
+      const updates = { zIndex: currentZ + delta };
+      updateStroke(id, updates);
+      sendUpdateStroke({ meetingId: meetingId || undefined, id, updates });
+    }
+  };
+
+
   // --- Keyboard Shortcuts (Copy / Paste / Delete) ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -242,19 +348,7 @@ const Canvas = () => {
           const el = activeEl as HTMLInputElement | HTMLTextAreaElement;
           if (el.selectionStart !== el.selectionEnd) return; // Let native OS copy text
         }
-
-        if (!selectedObject) return;
-
-        let itemToCopy = null;
-        if (selectedObject.type === 'sticky') itemToCopy = stickyNotes.find(s => s.id === selectedObject.id);
-        else if (selectedObject.type === 'text') itemToCopy = textItems.find(t => t.id === selectedObject.id);
-        else if (selectedObject.type === 'croquis') itemToCopy = croquisItems.find(c => c.id === selectedObject.id);
-        else if (selectedObject.type === 'stroke') itemToCopy = strokes.find(s => s.id === selectedObject.id);
-
-        if (itemToCopy) {
-          setClipboard({ type: selectedObject.type, item: itemToCopy });
-          toast({ title: 'Copied', description: 'Item copied to clipboard.', duration: 1500 });
-        }
+        handleCopy();
       }
 
       // Paste
@@ -267,34 +361,7 @@ const Canvas = () => {
         if (isInputFocused) {
           activeEl.blur(); // Blur so the user sees the newly pasted object instead
         }
-
-        const newId = crypto.randomUUID();
-        const offset = 20; // Visual offset when pasting
-
-        if (clipboard.type === 'sticky') {
-          const newItem = { ...clipboard.item, id: newId, x: clipboard.item.x + offset, y: clipboard.item.y + offset };
-          setStickyNotes(prev => [...prev, newItem]);
-          sendAddSticky({ meetingId: meetingId || undefined, note: newItem });
-          setSelectedObject({ id: newId, type: 'sticky' });
-        } else if (clipboard.type === 'text') {
-          const newItem = { ...clipboard.item, id: newId, x: clipboard.item.x + offset, y: clipboard.item.y + offset };
-          setTextItems(prev => [...prev, newItem]);
-          sendAddText({ meetingId: meetingId || undefined, item: newItem });
-          setSelectedObject({ id: newId, type: 'text' });
-        } else if (clipboard.type === 'croquis') {
-          const newItem = { ...clipboard.item, id: newId, x: clipboard.item.x + offset, y: clipboard.item.y + offset };
-          setCroquisItems(prev => [...prev, newItem]);
-          sendAddCroquis({ meetingId: meetingId || undefined, item: newItem });
-          setSelectedObject({ id: newId, type: 'croquis' });
-        } else if (clipboard.type === 'stroke') {
-          const newPoints = clipboard.item.points.map((p: any) => ({ ...p, x: p.x + offset, y: p.y + offset }));
-          const newItem = { ...clipboard.item, id: newId, points: newPoints };
-          setStrokes((prev: any) => [...prev, newItem]);
-          sendStroke({ meetingId: meetingId || undefined, stroke: newItem });
-          setSelectedObject({ id: newId, type: 'stroke' });
-        }
-
-        toast({ title: 'Pasted', description: 'Item pasted onto canvas.', duration: 1500 });
+        handlePasteRaw();
       }
 
       // Delete
@@ -488,6 +555,30 @@ const Canvas = () => {
 
     // Left click -> Draw
     handleStartDrawing(e);
+  };
+
+  const handleCanvasContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (tool !== 'select') return;
+
+    const point = getCanvasPoint(e);
+    if (!point) return;
+
+    const hitStroke = [...strokes].reverse().find(s => {
+      if (s.isFill) {
+        return isPointInPolygon({ x: point.x, y: point.y }, s.points);
+      }
+      const threshold = 20 / scale;
+      return s.points.some(p => Math.hypot(p.x - point.x, p.y - point.y) < threshold);
+    });
+
+    if (hitStroke) {
+      setSelectedObject({ id: hitStroke.id, type: 'stroke' });
+      setContextMenu({ x: e.clientX, y: e.clientY });
+    } else {
+      if (selectedObject) setSelectedObject(null);
+      setContextMenu(null);
+    }
   };
 
   const handleCanvasMouseMove = (e: React.MouseEvent) => {
@@ -1552,6 +1643,7 @@ const Canvas = () => {
         onMouseMove={handleCanvasMouseMove}
         onMouseUp={handleCanvasMouseUp}
         onMouseLeave={handleCanvasMouseUp}
+        onContextMenu={handleCanvasContextMenu}
       >
         {/* HTML Overlay (Stickies/Text) - Z-20 */}
         <div ref={overlayRef} className="absolute inset-0 pointer-events-none z-20" style={{ transformOrigin: '0 0' }}>
@@ -1560,12 +1652,20 @@ const Canvas = () => {
               className="absolute p-4 shadow-md transition-shadow cursor-grab active:cursor-grabbing pointer-events-auto"
               style={{
                 left: note.x, top: note.y, width: note.width || 200, height: note.height || 200, backgroundColor: note.color,
-                transform: `rotate(${note.rotation || 0}rad)`
+                transform: `rotate(${note.rotation || 0}rad)`, zIndex: note.zIndex || 0
               }}
               onMouseDown={(e) => {
                 if (tool === 'select') {
                   e.stopPropagation();
                   setSelectedObject({ id: note.id, type: 'sticky' });
+                }
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (tool === 'select') {
+                  setSelectedObject({ id: note.id, type: 'sticky' });
+                  setContextMenu({ x: e.clientX, y: e.clientY });
                 }
               }}
             >
@@ -1594,11 +1694,19 @@ const Canvas = () => {
           {textItems.map(item => (
             <div key={item.id}
               className="absolute pointer-events-auto cursor-grab active:cursor-grabbing"
-              style={{ left: item.x, top: item.y, width: item.width, height: item.height, color: item.color, fontSize: item.fontSize, transform: `rotate(${item.rotation || 0}rad)` }}
+              style={{ left: item.x, top: item.y, width: item.width, height: item.height, color: item.color, fontSize: item.fontSize, transform: `rotate(${item.rotation || 0}rad)`, zIndex: item.zIndex || 0 }}
               onMouseDown={(e) => {
                 if (tool === 'select') {
                   e.stopPropagation();
                   setSelectedObject({ id: item.id, type: 'text' });
+                }
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (tool === 'select') {
+                  setSelectedObject({ id: item.id, type: 'text' });
+                  setContextMenu({ x: e.clientX, y: e.clientY });
                 }
               }}
             >
@@ -1629,9 +1737,9 @@ const Canvas = () => {
         </div>
 
         {/* Croquis Layer - Z-1 */}
-        <div ref={croquisLayerRef} className="absolute inset-0 pointer-events-none z-1" style={{ transformOrigin: '0 0' }}>
+        <div ref={croquisLayerRef} className={`absolute inset-0 z-1 ${tool === 'select' ? 'pointer-events-auto' : 'pointer-events-none'}`} style={{ transformOrigin: '0 0' }}>
           {croquisItems.map(item => (
-            <div key={item.id} className={`absolute group pointer-events-auto ${tool === 'select' ? 'cursor-move' : ''}`} style={{ left: item.x, top: item.y, width: item.width, height: item.height, opacity: item.opacity, transform: `rotate(${item.rotation || 0}rad) scaleX(${item.isFlipped ? -1 : 1})` }}
+            <div key={item.id} className={`absolute group ${tool === 'select' ? 'pointer-events-auto cursor-move' : 'pointer-events-none'}`} style={{ left: item.x, top: item.y, width: item.width, height: item.height, opacity: item.opacity, transform: `rotate(${item.rotation || 0}rad) scaleX(${item.isFlipped ? -1 : 1})`, zIndex: item.zIndex || 0 }}
               onMouseDown={(e) => {
                 if (tool !== 'select' || item.isLocked) return;
                 if (e.button !== 0) return;
@@ -1654,8 +1762,16 @@ const Canvas = () => {
                 window.addEventListener('mousemove', onMove);
                 window.addEventListener('mouseup', onUp);
               }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (tool === 'select') {
+                  setSelectedObject({ id: item.id, type: 'croquis' });
+                  setContextMenu({ x: e.clientX, y: e.clientY });
+                }
+              }}
             >
-              <img src={item.src} className="w-full h-full object-contain" draggable={false} alt="Croquis" />
+              <img src={item.src} className="w-full h-full object-contain no-select no-drag" draggable={false} alt="Croquis" />
               {selectedObject?.id === item.id && (
                 <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-popover/95 backdrop-blur border border-border rounded-xl shadow-xl flex items-center p-1.5 gap-2 z-50 pointer-events-auto min-w-[300px]" style={{ transform: `scaleX(${item.isFlipped ? -1 : 1})` }} onMouseDown={e => e.stopPropagation()}>
                   <div className="w-24 px-2 flex items-center gap-2"><Eye className="w-3 h-3 text-muted-foreground" /><Slider value={[item.opacity]} min={0.1} max={1} step={0.1} onValueChange={([v]) => updateCroquis(item.id, { opacity: v })} className="flex-1" /></div>
@@ -1691,6 +1807,7 @@ const Canvas = () => {
             onMouseMove={(e) => !isReadOnly && !isPanning && !isSpacePressed && tool !== 'select' && draw(e)}
             onMouseUp={(e) => !isReadOnly && stopDrawing()}
             onMouseLeave={(e) => !isReadOnly && stopDrawing()}
+            onContextMenu={(e) => !isReadOnly && e.preventDefault()}
             onTouchStart={(e) => !isReadOnly && tool !== 'select' && startDrawing(e)}
             onTouchMove={(e) => !isReadOnly && tool !== 'select' && draw(e)}
             onTouchEnd={(e) => !isReadOnly && stopDrawing()}
@@ -1699,7 +1816,36 @@ const Canvas = () => {
 
       </div>
 
-
+      {contextMenu && (
+        <div
+          className="fixed bg-popover/95 backdrop-blur-md border border-border shadow-2xl rounded-xl w-48 py-1 z-[100] flex flex-col pointer-events-auto"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <button className="flex items-center px-4 py-2 text-sm hover:bg-muted text-left transition-colors text-foreground" onClick={() => { handleCopy(); setContextMenu(null); }}>
+            <Copy className="w-4 h-4 mr-2" /> Copy
+          </button>
+          <button className="flex items-center px-4 py-2 text-sm hover:bg-muted text-left transition-colors text-foreground" onClick={() => { handlePasteRaw(); setContextMenu(null); }}>
+            <ClipboardPaste className="w-4 h-4 mr-2" /> Paste
+          </button>
+          <div className="h-px bg-border my-1" />
+          <button className="flex items-center px-4 py-2 text-sm hover:bg-muted text-left transition-colors text-foreground" onClick={() => { handleDuplicate(); setContextMenu(null); }}>
+            <CopyPlus className="w-4 h-4 mr-2" /> Duplicate
+          </button>
+          <div className="h-px bg-border my-1" />
+          <button className="flex items-center px-4 py-2 text-sm hover:bg-muted text-left transition-colors text-foreground" onClick={() => { handleZIndexChange(-1); setContextMenu(null); }}>
+            <SendToBack className="w-4 h-4 mr-2" /> Send Backward
+          </button>
+          <button className="flex items-center px-4 py-2 text-sm hover:bg-muted text-left transition-colors text-foreground" onClick={() => { handleZIndexChange(1); setContextMenu(null); }}>
+            <BringToFront className="w-4 h-4 mr-2" /> Send Forward
+          </button>
+          <div className="h-px bg-border my-1" />
+          <button className="flex items-center px-4 py-2 text-sm hover:bg-muted text-left transition-colors text-destructive" onClick={() => { handleObjectDelete(); setContextMenu(null); }}>
+            <Trash2 className="w-4 h-4 mr-2" /> Delete
+          </button>
+        </div>
+      )}
 
       <input
         type="file"

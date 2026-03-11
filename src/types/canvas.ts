@@ -15,6 +15,7 @@ export interface Stroke {
   center?: Point; // Pivot for rotation
   isFill?: boolean; // If true, points define a filled polygon
   isEraser?: boolean; // If true, cuts through canvas elements
+  zIndex?: number;
 }
 
 export interface User {
@@ -49,6 +50,7 @@ export interface StickyNote {
   width?: number;
   height?: number;
   rotation?: number;
+  zIndex?: number;
 }
 
 export interface TextItem {
@@ -61,6 +63,7 @@ export interface TextItem {
   rotation?: number;
   width?: number;
   height?: number;
+  zIndex?: number;
 }
 
 export interface CroquisItem {
@@ -74,6 +77,7 @@ export interface CroquisItem {
   isLocked: boolean;
   isFlipped: boolean;
   rotation?: number;
+  zIndex?: number;
 }
 
 export interface CanvasElement {
