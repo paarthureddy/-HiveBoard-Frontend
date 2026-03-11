@@ -470,11 +470,10 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
     ctx.restore();
 
     // Draw Strokes (Purging any legacy raster eraser strokes so they don't look like white lines)
-    const validStrokes = strokes.filter(s => !s.isEraser && (s.color || '').toUpperCase() !== '#F8F6F3');
-    validStrokes.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
-    validStrokes.forEach(s => paintStroke(s));
-
-    // Remote strokes rendering
+    strokes.forEach(s => {
+      if (s.isEraser || (s.color || '').toUpperCase() === '#F8F6F3') return;
+      paintStroke(s);
+    });
     remoteLivedStrokes.forEach(s => {
       if ((s.color || '').toUpperCase() === '#F8F6F3') return;
       paintStroke({ ...s, id: 'remote', userId: 'remote' } as Stroke);
