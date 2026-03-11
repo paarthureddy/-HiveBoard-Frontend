@@ -196,42 +196,103 @@ export const useCanvas = (options: UseCanvasOptions = {}) => {
 
           if (matchesTarget(nPos)) {
             stack.push(nx, ny);
-          } else {
-            isBoundary = true;
           }
         }
-
-        if (unbounded) {
-          break;
-        }
-
-        if (isBoundary) {
-          boundaryPoints.push({
-            x: ((x / dpr) - offset.x) / scale,
-            y: ((y / dpr) - offset.y) / scale
-          });
-        }
+        if (unbounded) break;
       }
 
       if (unbounded) return;
 
-      // Sort points to form a polygon (Graham Scan / Angular Sort around centroid)
-      if (boundaryPoints.length > 2) {
-        // Calculate Centroid
-        let cx = 0, cy = 0;
-        boundaryPoints.forEach(p => { cx += p.x; cy += p.y; });
-        cx /= boundaryPoints.length;
-        cy /= boundaryPoints.length;
+      // 2. Moore Neighborhood boundary tracing
+      let startX = -1, startY = -1;
+      outer: for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          if (visited[y * w + x]) {
+            startX = x;
+            startY = y;
+            break outer;
+          }
+        }
+      }
 
-        // Sort by angle
-        boundaryPoints.sort((a, b) => {
-          return Math.atan2(a.y - cy, a.x - cx) - Math.atan2(b.y - cy, b.x - cx);
-        });
+      if (startX !== -1) {
+        const OFFSETS = [
+          [-1, -1], [0, -1], [1, -1],
+          [1, 0], [1, 1], [0, 1],
+          [-1, 1], [-1, 0]
+        ];
+
+        let currX = startX;
+        let currY = startY;
+        let backX = startX;
+        let backY = startY - 1;
+
+        const orderedPoints: Point[] = [];
+        let loopCount = 0;
+        const MAX_LOOP = w * h * 2;
+
+        do {
+          orderedPoints.push({
+            x: ((currX / dpr) - offset.x) / scale,
+            y: ((currY / dpr) - offset.y) / scale
+          });
+
+          let dx = Math.sign(backX - currX);
+          let dy = Math.sign(backY - currY);
+          let startIdx = 0;
+          for (let i = 0; i < 8; i++) {
+            if (OFFSETS[i][0] === dx && OFFSETS[i][1] === dy) {
+              startIdx = i; break;
+            }
+          }
+
+          let found = false;
+          let nextX = currX;
+          let nextY = currY;
+          let nextBackX = backX;
+          let nextBackY = backY;
+
+          for (let i = 1; i < 8; i++) {
+            let idx = (startIdx + i) % 8;
+            let nx = currX + OFFSETS[idx][0];
+            let ny = currY + OFFSETS[idx][1];
+
+            if (nx >= 0 && nx < w && ny >= 0 && ny < h && visited[ny * w + nx]) {
+              found = true;
+              nextX = nx;
+              nextY = ny;
+              let emptyIdx = (startIdx + i - 1 + 8) % 8;
+              nextBackX = currX + OFFSETS[emptyIdx][0];
+              nextBackY = currY + OFFSETS[emptyIdx][1];
+              break;
+            }
+          }
+
+          if (!found) break; // Isolated 1-pixel fill
+
+          currX = nextX;
+          currY = nextY;
+          backX = nextBackX;
+          backY = nextBackY;
+
+          loopCount++;
+          if (loopCount > MAX_LOOP) break;
+          // Stop when we return to the start from the same entry direction
+          if (currX === startX && currY === startY && backX === startX && backY === startY - 1) break;
+
+        } while (true);
+
+        // Simplify path: downsample to reduce payload size
+        const simplifiedPoints: Point[] = [];
+        const step = Math.max(1, Math.floor(orderedPoints.length / 800));
+        for (let i = 0; i < orderedPoints.length; i += step) {
+          simplifiedPoints.push(orderedPoints[i]);
+        }
 
         // Create Fill Stroke
         const newStroke: Stroke = {
           id: crypto.randomUUID(),
-          points: boundaryPoints, // Downsample if needed
+          points: simplifiedPoints,
           color: fillColor,
           width: 0,
           userId: 'current-user',
