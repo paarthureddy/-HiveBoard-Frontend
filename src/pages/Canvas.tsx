@@ -323,28 +323,27 @@ const Canvas = () => {
   const handleZIndexChange = (delta: number) => {
     if (!selectedObject) return;
     const { id, type } = selectedObject;
-    let currentZ = 0;
 
     if (type === 'sticky') {
       const item = stickyNotes.find(x => x.id === id);
-      currentZ = item?.zIndex || 0;
+      const currentZ = item?.zIndex ?? 0;
       const updates = { zIndex: currentZ + delta };
       setStickyNotes(prev => prev.map(x => x.id === id ? { ...x, ...updates } : x));
       sendUpdateSticky({ meetingId: meetingId || undefined, id, updates });
     } else if (type === 'text') {
       const item = textItems.find(x => x.id === id);
-      currentZ = item?.zIndex || 0;
+      const currentZ = item?.zIndex ?? 0;
       const updates = { zIndex: currentZ + delta };
       setTextItems(prev => prev.map(x => x.id === id ? { ...x, ...updates } : x));
       sendUpdateText({ meetingId: meetingId || undefined, id, updates });
     } else if (type === 'croquis') {
       const item = croquisItems.find(x => x.id === id);
-      currentZ = item?.zIndex || 0;
+      const currentZ = item?.zIndex ?? 0;
       const updates = { zIndex: currentZ + delta };
       updateCroquis(id, updates);
     } else if (type === 'stroke') {
       const item = strokes.find(x => x.id === id);
-      currentZ = item?.zIndex || 0;
+      const currentZ = item?.zIndex ?? 0;
       const updates = { zIndex: currentZ + delta };
       updateStroke(id, updates);
       sendUpdateStroke({ meetingId: meetingId || undefined, id, updates });
@@ -1841,6 +1840,7 @@ const Canvas = () => {
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
           onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
         >
           <button className="flex items-center px-4 py-2 text-sm hover:bg-muted text-left transition-colors text-foreground" onClick={() => { handleCopy(); setContextMenu(null); }}>
             <Copy className="w-4 h-4 mr-2" /> Copy
